@@ -43,6 +43,7 @@ Matrice mat;
 
 void initSDL()
 {
+    //initialise SDL
     SDL_Init(SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer(width, height, 0, &window, &renderer);
     SDL_Surface* image = NULL;
@@ -52,6 +53,7 @@ void initSDL()
 
 int initTTF()
 {
+    //initialise la police d'ecriture
     if (TTF_Init() != 0) {
         printf("Erreur : %s\n", TTF_GetError());
         SDL_Quit();
@@ -67,6 +69,7 @@ int initTTF()
 
 void initmat()
 {
+    //initialise une matrice
     mat.MATlength = matlength;
     mat.MATwidth = matwidth;
     mat.data = (Point**)malloc(sizeof(Point*)*matlength);
@@ -84,6 +87,7 @@ void initmat()
 
 void stataff(int fps) 
 {
+    //affiche les statistiques
     char texte[100];
     sprintf(texte, "fps : %d", fps);
     SDL_Color couleur = { 255, 255, 255, SDL_ALPHA_OPAQUE};
@@ -103,6 +107,7 @@ void stataff(int fps)
 
 void particleoutofthegrid()
 {
+    //permet au particule de ne pas sortir de l'cran
     for (int i = 0; i<matlength; i++) {
         for (int j = 0 ; j<matwidth; j++) {
             if (mat.data[i][j].x<0) {
@@ -119,8 +124,16 @@ void particleoutofthegrid()
     }
 } 
 
+double calcule_viscosite_eau(T){
+    //calcule de la viscositer en fonction de la temperature pour de l'eau
+    double viscositer;
+    viscositer = pow(1.79*10,-3)*(1/1+0.03368*T+T*0.000211);
+    return viscositer
+}
+
 void update()
 {
+    //met a jours les positions des particules en fonction des forces exercers
     SDL_Rect square;
     SDL_RenderClear(renderer);
     SDL_SetRenderDrawColor(renderer, 22, 22, 22, SDL_ALPHA_OPAQUE);
@@ -141,6 +154,7 @@ void update()
 
 void aff()
 {
+    //permet d'afficher les particules
     int a, x, y, running = 1;
     SDL_Event Event;
     initSDL();
@@ -179,4 +193,5 @@ void aff()
 int main()
 {
     aff();
+    return 0;
 }
