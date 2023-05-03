@@ -128,7 +128,7 @@ double calcule_viscosite_eau(T){
     //calcule de la viscositer en fonction de la temperature pour de l'eau
     double viscositer;
     viscositer = pow(1.79*10,-3)*(1/1+0.03368*T+T*0.000211);
-    return viscositer
+    return viscositer ;
 }
 
 void update()
