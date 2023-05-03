@@ -12,7 +12,7 @@
 #define height 800
 #define matwidth 50
 #define matlength 50
-#define Mparticle = 1/(tabwidth*tabheight)
+#define Mparticle  500/(matlength*matwidth)
 #define FPS 120 
 const double pi = 2*acos(0);
 const double g = 9.81;
@@ -38,7 +38,7 @@ typedef struct matrice {
     Point** data;
 }Matrice;
 
-
+Matrice mat;
 
 
 void initSDL()
@@ -65,10 +65,8 @@ int initTTF()
     }
 }
 
-Matrice initmat()
+void initmat()
 {
-    int x,y;
-    Matrice mat;
     mat.MATlength = matlength;
     mat.MATwidth = matwidth;
     mat.data = (Point**)malloc(sizeof(Point*)*matlength);
@@ -82,16 +80,7 @@ Matrice initmat()
             mat.data[i][j].y = (height-matwidth*2)/4+j*2; 
         }
     }
-    for (int i = 0 ; i < matlength ; i++) {
-        for (int j = 0 ; j < matwidth ; j++) {      
-            x = mat.data[i][j].x;
-            y = mat.data[i][j].y;
-            SDL_RenderDrawPoint(renderer,x,y);
-        }
-    }
 }
-
-
 
 void stataff(int fps) 
 {
@@ -111,9 +100,27 @@ void stataff(int fps)
 
 } 
 
-void update(Matrice mat)
+
+void particleoutofthegrid()
 {
-    float x, y;
+    for (int i = 0; i<matlength; i++) {
+        for (int j = 0 ; j<matwidth; j++) {
+            if (mat.data[i][j].x<0) {
+                mat.data[i][j].x = ;
+            } else if (mat.data[i][j].x>width) {
+                mat.data[i][j].x = ;
+            }
+            if (mat.data[i][j].y<0) {
+                mat.data[i][j].y = ;
+            } else if (mat.data[i][j].y>height) {
+                mat.data[i][j].y = ;
+            }
+        }
+    }
+} 
+
+void update()
+{
     SDL_Rect square;
     SDL_RenderClear(renderer);
     SDL_SetRenderDrawColor(renderer, 22, 22, 22, SDL_ALPHA_OPAQUE);
@@ -125,9 +132,9 @@ void update(Matrice mat)
     SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
     for (int i = 0 ; i < matlength ; i++) {
         for (int j = 0 ; j < matwidth ; j++) {      
-            x = mat.data[i][j].x;
-            y = mat.data[i][j].y;
-            SDL_RenderDrawPoint(renderer,x,y);
+            mat.data[i][j].y += g*Mparticle;
+            O++;
+            SDL_RenderDrawPoint(renderer,mat.data[i][j].x,mat.data[i][j].y);
         }
     }
 }
@@ -139,8 +146,7 @@ void aff()
     initSDL();
     initTTF();
     Uint32 start_time, end_time, elapsed_time;
-    
-    Matrice mat = initmat();
+    initmat();
     while (running) {
         start_time = SDL_GetTicks();
         last_time = current_time;
@@ -150,7 +156,7 @@ void aff()
             }
         }
         
-        ///update(mat);
+        update();
         end_time = SDL_GetTicks();
         elapsed_time = end_time - start_time;
         if (elapsed_time < 1000 / FPS) {
