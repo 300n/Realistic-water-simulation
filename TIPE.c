@@ -12,24 +12,32 @@
 #define height 800
 #define matwidth 50
 #define matlength 50
-#define Mparticle  500/(matlength*matwidth)
-#define FPS 120 
+#define Mparticle 1000/(matlength*matwidth)
+#define FPS 100 
 const double pi = 2*acos(0);
-const double g = 9.81;
+const double g =9.80665;
 SDL_Renderer* renderer;
 SDL_Window* window;
-SDL_Surface* surface_texte;
-SDL_Texture* texture_texte;
 TTF_Font* font;
 int O = 0;
+char texte[100];
+clock_t starttime;
 Uint32 last_time;
 Uint32 current_time;
+SDL_Rect square;
+SDL_Rect rect_texte;
+SDL_Surface* surface_texte;
+SDL_Texture* texture_texte;
+SDL_Color couleur = { 255, 255, 255, SDL_ALPHA_OPAQUE};
+
 
 
 
 typedef struct point {
     double x;
     double y;
+    int xdirection;
+    int ydirection;
 }Point;
 
 typedef struct matrice {
@@ -40,10 +48,9 @@ typedef struct matrice {
 
 Matrice mat;
 
-
 void initSDL()
+/*initialise SDL*/
 {
-    //initialise SDL
     SDL_Init(SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer(width, height, 0, &window, &renderer);
     SDL_Surface* image = NULL;
@@ -52,8 +59,8 @@ void initSDL()
 }
 
 int initTTF()
+/*initialise la police d'ecriture*/
 {
-    //initialise la police d'ecriture
     if (TTF_Init() != 0) {
         printf("Erreur : %s\n", TTF_GetError());
         SDL_Quit();
@@ -68,8 +75,8 @@ int initTTF()
 }
 
 void initmat()
+/*initialise la matrice*/
 {
-    //initialise une matrice
     mat.MATlength = matlength;
     mat.MATwidth = matwidth;
     mat.data = (Point**)malloc(sizeof(Point*)*matlength);
@@ -81,61 +88,88 @@ void initmat()
         for (int j = 0; j<matwidth; j++) {
             mat.data[i][j].x = (width-matlength*2)/2+i*2;
             mat.data[i][j].y = (height-matwidth*2)/4+j*2; 
+            mat.data[i][j].xdirection = 1;
+            mat.data[i][j].ydirection = 1;
         }
     }
 }
 
-void stataff(int fps) 
+double gettime()
 {
-    //affiche les statistiques
-    char texte[100];
-    sprintf(texte, "fps : %d", fps);
-    SDL_Color couleur = { 255, 255, 255, SDL_ALPHA_OPAQUE};
-    surface_texte = TTF_RenderText_Blended(font, texte, couleur);
-    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    SDL_Rect rect_texte = {0, 0, surface_texte->w, surface_texte->h};
-    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    sprintf(texte, "nombre d'operations par frame: %d", O);
-    surface_texte = TTF_RenderText_Blended(font, texte, couleur);
-    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    SDL_Rect rect_texte2 = {0, 30, surface_texte->w, surface_texte->h};
-    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte2);
-    O = 0;
+    return (double)(clock() - starttime) / CLOCKS_PER_SEC;
+}
 
+void stataff(int fps)
+/*affichage des statistiques*/ 
+{
+    sprintf(texte, "fps : %d", fps);
+    surface_texte = TTF_RenderText_Blended(font, texte, couleur);
+    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+    rect_texte.x = 0;
+    rect_texte.y = 0;
+    rect_texte.w = surface_texte->w;
+    rect_texte.h = surface_texte->h;
+    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+    sprintf(texte, "nombre d'operations par frame : %d", O);
+    surface_texte = TTF_RenderText_Blended(font, texte, couleur);
+    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+    rect_texte.y = 15;
+    rect_texte.w = surface_texte->w;
+    rect_texte.h = surface_texte->h;
+    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+    sprintf(texte, "temp ecoule : %-2f s", gettime());
+    surface_texte = TTF_RenderText_Blended(font, texte, couleur);
+    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+    rect_texte.y = 30;
+    rect_texte.w = surface_texte->w;
+    rect_texte.h = surface_texte->h;
+    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+    O = 0;
 } 
 
-
-void particleoutofthegrid()
+/*
+void collision(int isgoingtomoovetox, int isgoingtomoovetoy)
 {
-    //permet au particule de ne pas sortir de l'cran
     for (int i = 0; i<matlength; i++) {
-        for (int j = 0 ; j<matwidth; j++) {
-            if (mat.data[i][j].x<0) {
-                mat.data[i][j].x = ;
-            } else if (mat.data[i][j].x>width) {
-                mat.data[i][j].x = ;
+        for (int j = 0; j<matwidth; j++) {
+            for (int k = 0; k<isgoingtomoovetox; k++) {
+                if (mat.data[i][j].x)
             }
-            if (mat.data[i][j].y<0) {
-                mat.data[i][j].y = ;
-            } else if (mat.data[i][j].y>height) {
-                mat.data[i][j].y = ;
+            for (int l = 0; l<isgoingtomoovetoy; l++) {
+                if (mat.data[i][j].y)
             }
         }
     }
-} 
+}*/
 
-double calcule_viscosite_eau(T){
-    //calcule de la viscositer en fonction de la temperature pour de l'eau
+double calcule_viscosite_eau(int T)
+/*calcule de la viscosité de l'eau en fonction de la temperature*/
+{
     double viscositer;
     viscositer = pow(1.79*10,-3)*(1/1+0.03368*T+T*0.000211);
     return viscositer ;
 }
 
-void update()
+void particleoutofthegrid()
+/*Détecte une sortie de l'écran*/
 {
-    //met a jours les positions des particules en fonction des forces exercers
-    SDL_Rect square;
-    SDL_RenderClear(renderer);
+    for (int i = 0; i<matlength; i++) {
+        for (int j = 0 ; j<matwidth; j++) {
+            if (mat.data[i][j].x<0 || mat.data[i][j].x>width ) {
+                mat.data[i][j].xdirection *= -1;
+                O++;
+            }
+            if (mat.data[i][j].y<0 || mat.data[i][j].y>height) {
+                mat.data[i][j].ydirection *= -1;
+                O++;
+            }
+        }
+    }
+} 
+
+void update()
+/*mise à jour des positions de chaque particule*/
+{
     SDL_SetRenderDrawColor(renderer, 22, 22, 22, SDL_ALPHA_OPAQUE);
     square.x = 0;
     square.y = 0;
@@ -143,9 +177,10 @@ void update()
     square.w = width;
     SDL_RenderFillRect(renderer, &square);
     SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
+    particleoutofthegrid();
     for (int i = 0 ; i < matlength ; i++) {
         for (int j = 0 ; j < matwidth ; j++) {      
-            mat.data[i][j].y += g*Mparticle;
+            mat.data[i][j].y += ((g*Mparticle)*mat.data[i][j].ydirection);
             O++;
             SDL_RenderDrawPoint(renderer,mat.data[i][j].x,mat.data[i][j].y);
         }
@@ -153,14 +188,15 @@ void update()
 }
 
 void aff()
+/*affichage des particules*/
 {
-    //permet d'afficher les particules
     int a, x, y, running = 1;
     SDL_Event Event;
     initSDL();
     initTTF();
     Uint32 start_time, end_time, elapsed_time;
     initmat();
+    starttime = clock();
     while (running) {
         start_time = SDL_GetTicks();
         last_time = current_time;
@@ -187,8 +223,6 @@ void aff()
     SDL_DestroyWindow(window);
     SDL_Quit();
 }
-
-
 
 int main()
 {
