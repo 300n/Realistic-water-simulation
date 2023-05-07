@@ -94,6 +94,26 @@ void initmat()
     }
 }
 
+
+void drawgrid()
+{
+    int nbofd = 20;
+    SDL_SetRenderDrawColor(renderer,50,50,50,SDL_ALPHA_TRANSPARENT);
+    for (int i = 1; i<nbofd ;i++) {
+        SDL_RenderDrawLine(renderer,(height/40)+(((height-(height/20))/nbofd)*i),(width/40),((height/40)+(((height-(height/20))/nbofd)*i)),width-(width/40));
+        SDL_RenderDrawLine(renderer,(height/40),(width/40)+(((width-(width/20))/nbofd)*i),height-(height/40),(width/40)+(((width-(width/20))/nbofd)*i));
+    }
+    SDL_SetRenderDrawColor(renderer,255,255,255,SDL_ALPHA_OPAQUE);
+    SDL_RenderDrawLine(renderer,(height/40),(width/40),(height/40),width-(width/40));
+    SDL_RenderDrawLine(renderer,(height/40),(width/40),height-(height/40),(width/40));
+    SDL_RenderDrawLine(renderer,(height/40),width-(width/40),height-(height/40),width-(width/40));
+    SDL_RenderDrawLine(renderer,height-(height/40),(width/40),height-(height/40),width-(width/40));
+
+}
+
+
+
+
 double gettime()
 {
     return (double)(clock() - starttime) / CLOCKS_PER_SEC;
@@ -105,22 +125,22 @@ void stataff(int fps)
     sprintf(texte, "fps : %d", fps);
     surface_texte = TTF_RenderText_Blended(font, texte, couleur);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.x = 0;
-    rect_texte.y = 0;
+    rect_texte.x = (height/40)+5;
+    rect_texte.y = (width/40);
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
     sprintf(texte, "nombre d'operations par frame : %d", O);
     surface_texte = TTF_RenderText_Blended(font, texte, couleur);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.y = 15;
+    rect_texte.y = (width/40)+15;
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    sprintf(texte, "temp ecoule : %-2f s", gettime());
+    sprintf(texte, "temps ecoule : %-2f s", gettime());
     surface_texte = TTF_RenderText_Blended(font, texte, couleur);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.y = 30;
+    rect_texte.y = (width/40)+30;
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
@@ -128,17 +148,13 @@ void stataff(int fps)
 } 
 
 /*
-void collision(int isgoingtomoovetox, int isgoingtomoovetoy)
+void collision(double currentxpos, double currentypos, double isgoingtomoovetox, double isgoingtomoovetoy)
 {
-    for (int i = 0; i<matlength; i++) {
-        for (int j = 0; j<matwidth; j++) {
-            for (int k = 0; k<isgoingtomoovetox; k++) {
-                if (mat.data[i][j].x)
-            }
-            for (int l = 0; l<isgoingtomoovetoy; l++) {
-                if (mat.data[i][j].y)
-            }
-        }
+    for (int k = 0; k<isgoingtomoovetox; k++) {
+        if (mat.data[][currentypos].x)
+    }
+    for (int l = 0; l<isgoingtomoovetoy; l++) {
+        if (mat.data[i][j].y)
     }
 }*/
 
@@ -155,11 +171,11 @@ void particleoutofthegrid()
 {
     for (int i = 0; i<matlength; i++) {
         for (int j = 0 ; j<matwidth; j++) {
-            if (mat.data[i][j].x<0 || mat.data[i][j].x>width ) {
+            if (mat.data[i][j].x<(width/40) || mat.data[i][j].x>width-(width/40)) {
                 mat.data[i][j].xdirection *= -1;
                 O++;
             }
-            if (mat.data[i][j].y<0 || mat.data[i][j].y>height) {
+            if (mat.data[i][j].y<(height/40) || mat.data[i][j].y>height-(height/40)) {
                 mat.data[i][j].ydirection *= -1;
                 O++;
             }
@@ -176,11 +192,18 @@ void update()
     square.h = height;
     square.w = width;
     SDL_RenderFillRect(renderer, &square);
+    drawgrid();
     SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
     particleoutofthegrid();
     for (int i = 0 ; i < matlength ; i++) {
         for (int j = 0 ; j < matwidth ; j++) {      
             mat.data[i][j].y += ((g*Mparticle)*mat.data[i][j].ydirection);
+            /*if (mat.data[i][j].xdirection == -1) {
+                mat.data[i][j].xdirection *= -1;
+            }
+            if (mat.data[i][j].ydirection == -1) {
+                mat.data[i][j].ydirection *= -1;
+            }*/
             O++;
             SDL_RenderDrawPoint(renderer,mat.data[i][j].x,mat.data[i][j].y);
         }
