@@ -8,8 +8,8 @@
 #include <stdint.h>
 
 
-#define width 800
-#define height 800
+#define width 1000
+#define height 1000
 #define matwidth 50
 #define matlength 50
 #define Mparticle 1000/(matlength*matwidth)
@@ -19,6 +19,7 @@ const double g =9.80665;
 SDL_Renderer* renderer;
 SDL_Window* window;
 TTF_Font* font;
+TTF_Font* smallfont;
 int O = 0;
 char texte[100];
 clock_t starttime;
@@ -72,6 +73,12 @@ int initTTF()
         TTF_Quit();
         SDL_Quit();
     }
+    smallfont = TTF_OpenFont("/home/bastien/2022-2023/Info/TIPE/font.ttf", 12);
+    if (!smallfont) {
+        printf("Erreur : impossible d'ouvrir le fichier de police\n");
+        TTF_Quit();
+        SDL_Quit();
+    }
 }
 
 void initmat()
@@ -94,9 +101,41 @@ void initmat()
     }
 }
 
-
-void drawgrid()
+void draw_Cartesian_axes()
 {
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+    SDL_RenderDrawLine(renderer,height/40+(((height-(height/20))/20)),width-(width*3/40)-(width/150),height/40+(((height-(height/20))/20)*2),width-(width*3/40)-(width/150));
+    SDL_RenderDrawLine(renderer,(height/40*3)-(height/275),(width/40)+(((width-(width/20))/20)*18),(height/40*3)-(height/275),(width/40)+(((width-(width/20))/20)*19));
+
+    /*tip of arrows*/
+    SDL_RenderDrawLine(renderer,height/40+(((height-(height/20))/20)*2),width-(width*3/40)-(width/150),(height/40+(((height-(height/20))/20)*2))-(height/140),width-(width*3/40)-(width/150)-(width/140));
+    SDL_RenderDrawLine(renderer,height/40+(((height-(height/20))/20)*2),width-(width*3/40)-(width/150),(height/40+(((height-(height/20))/20)*2))-(height/140),width-(width*3/40)-(width/150)+(width/140));
+    SDL_RenderDrawLine(renderer,(height/40+(((height-(height/20))/20)*2))-(height/140),width-(width*3/40)-(width/150)-(width/140),(height/40+(((height-(height/20))/20)*2))-(height/140),width-(width*3/40)-(width/150)+(width/140));
+    SDL_RenderDrawLine(renderer,(height/40*3)-(height/275),(width/40)+(((width-(width/20))/20)*18),(height/40*3)-(height/275)-(height/140),(width/40)+(((width-(width/20))/20)*18)+(width/140));
+    SDL_RenderDrawLine(renderer,(height/40*3)-(height/275),(width/40)+(((width-(width/20))/20)*18),(height/40*3)-(height/275)+(height/140),(width/40)+(((width-(width/20))/20)*18)+(width/140));
+    SDL_RenderDrawLine(renderer,(height/40*3)-(height/275)-(height/140),(width/40)+(((width-(width/20))/20)*18)+(width/140),(height/40*3)-(height/275)+(height/140),(width/40)+(((width-(width/20))/20)*18)+(width/140));
+    /*txt*/
+    sprintf(texte, "1m");
+    surface_texte = TTF_RenderText_Blended(smallfont, texte, couleur);
+    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+    rect_texte.x = (height/40+(((height-(height/20))/20))+height/40+(((height-(height/20))/20)*2))/2-height/80;
+    rect_texte.y = width-(width*3/40)+width/300;
+    rect_texte.w = surface_texte->w;
+    rect_texte.h = surface_texte->h;
+    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+    rect_texte.x = (height/40*3)-1-height/40;
+    rect_texte.y = ((width/40)+(((width-(width/20))/20)*(18+19)))/2+width/140;
+    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+}
+
+void draw_grid()
+{
+    SDL_SetRenderDrawColor(renderer, 22, 22, 22, SDL_ALPHA_OPAQUE);
+    square.x = 0;
+    square.y = 0;
+    square.h = height;
+    square.w = width;
+    SDL_RenderFillRect(renderer, &square);
     int nbofd = 20;
     SDL_SetRenderDrawColor(renderer,50,50,50,SDL_ALPHA_TRANSPARENT);
     for (int i = 1; i<nbofd ;i++) {
@@ -108,18 +147,26 @@ void drawgrid()
     SDL_RenderDrawLine(renderer,(height/40),(width/40),height-(height/40),(width/40));
     SDL_RenderDrawLine(renderer,(height/40),width-(width/40),height-(height/40),width-(width/40));
     SDL_RenderDrawLine(renderer,height-(height/40),(width/40),height-(height/40),width-(width/40));
+    draw_Cartesian_axes();
 
 }
 
+void clear_grid()
+{
+    SDL_SetRenderDrawColor(renderer,22,22,22,SDL_ALPHA_OPAQUE);
+    for (int i = 0; i<matlength; i++) {
+        for (int j = 0; j<matwidth; j++) {
+            SDL_RenderDrawPoint(renderer,mat.data[i][j].x,mat.data[i][j].y);
+        }
+    }
+}
 
-
-
-double gettime()
+double get_time()
 {
     return (double)(clock() - starttime) / CLOCKS_PER_SEC;
 }
 
-void stataff(int fps)
+void stat_aff(int fps)
 /*affichage des statistiques*/ 
 {
     sprintf(texte, "fps : %d", fps);
@@ -137,7 +184,7 @@ void stataff(int fps)
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    sprintf(texte, "temps ecoule : %-2f s", gettime());
+    sprintf(texte, "temps ecoule : %-2f s", get_time());
     surface_texte = TTF_RenderText_Blended(font, texte, couleur);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.y = (width/40)+30;
@@ -147,16 +194,27 @@ void stataff(int fps)
     O = 0;
 } 
 
-/*
-void collision(double currentxpos, double currentypos, double isgoingtomoovetox, double isgoingtomoovetoy)
+void collision()
 {
-    for (int k = 0; k<isgoingtomoovetox; k++) {
-        if (mat.data[][currentypos].x)
+    for (int k = 0; k<matlength; k++) {
+        for (int l = 0; l<matwidth; l++) {
+            for (int i = 0; i<matlength; i++) {
+                for (int j = 0; j<matwidth; j++) {
+                    O++;
+                    if ((mat.data[k][l].x-mat.data[i][j].x)<1) {
+                        mat.data[i][j].x += (mat.data[k][l].x+1)*mat.data[i][j].xdirection;
+                    } 
+                    O++;
+                    if ((mat.data[k][l].y-mat.data[i][j].y)<1) {
+                        mat.data[i][j].y += (mat.data[k][l].y+1)*mat.data[i][j].ydirection;
+                    } 
+                }
+            }
+        }
     }
-    for (int l = 0; l<isgoingtomoovetoy; l++) {
-        if (mat.data[i][j].y)
-    }
-}*/
+
+
+}
 
 double calcule_viscosite_eau(int T)
 /*calcule de la viscosité de l'eau en fonction de la temperature*/
@@ -166,7 +224,7 @@ double calcule_viscosite_eau(int T)
     return viscositer ;
 }
 
-void particleoutofthegrid()
+void particle_out_of_the_grid()
 /*Détecte une sortie de l'écran*/
 {
     for (int i = 0; i<matlength; i++) {
@@ -186,18 +244,15 @@ void particleoutofthegrid()
 void update()
 /*mise à jour des positions de chaque particule*/
 {
-    SDL_SetRenderDrawColor(renderer, 22, 22, 22, SDL_ALPHA_OPAQUE);
-    square.x = 0;
-    square.y = 0;
-    square.h = height;
-    square.w = width;
-    SDL_RenderFillRect(renderer, &square);
-    drawgrid();
+    draw_grid();
+    clear_grid();
     SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
-    particleoutofthegrid();
+    particle_out_of_the_grid();
+    /*collision();*/
     for (int i = 0 ; i < matlength ; i++) {
         for (int j = 0 ; j < matwidth ; j++) {      
             mat.data[i][j].y += ((g*Mparticle)*mat.data[i][j].ydirection);
+            mat.data[i][j].x += 1*mat.data[i][j].xdirection;
             /*if (mat.data[i][j].xdirection == -1) {
                 mat.data[i][j].xdirection *= -1;
             }
@@ -235,7 +290,7 @@ void aff()
         if (elapsed_time < 1000 / FPS) {
             SDL_Delay((1000 / FPS) - elapsed_time);
         }
-        stataff(FPS);
+        stat_aff(FPS);
         SDL_RenderPresent(renderer);
     }
 
