@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <math.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
@@ -10,11 +11,11 @@
 
 #define width 1000
 #define height 1000
-#define matwidth 50
-#define matlength 50
-#define Mparticle 1000/(matlength*matwidth)
-#define FPS 100 
-const double pi = 2*acos(0);
+#define matwidth 35
+#define matlength 35
+#define Mparticle 15/(matlength*matwidth)
+#define FPS 2000
+const double pi = 3.1415926535;
 const double g =9.80665;
 SDL_Renderer* renderer;
 SDL_Window* window;
@@ -22,6 +23,8 @@ TTF_Font* font;
 TTF_Font* smallfont;
 int O = 0;
 char texte[100];
+int Width = width;
+int Height = height;
 clock_t starttime;
 Uint32 last_time;
 Uint32 current_time;
@@ -37,6 +40,10 @@ SDL_Color couleur = { 255, 255, 255, SDL_ALPHA_OPAQUE};
 typedef struct point {
     double x;
     double y;
+    double vx;
+    double vy;
+    double ax;
+    double ay;
     int xdirection;
     int ydirection;
 }Point;
@@ -53,7 +60,7 @@ void initSDL()
 /*initialise SDL*/
 {
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_CreateWindowAndRenderer(width, height, 0, &window, &renderer);
+    SDL_CreateWindowAndRenderer(Width, Height, 0, &window, &renderer);
     SDL_Surface* image = NULL;
     SDL_Texture* texture = NULL; 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
@@ -93,8 +100,8 @@ void initmat()
 
     for (int i = 0; i<matlength; i++) {
         for (int j = 0; j<matwidth; j++) {
-            mat.data[i][j].x = (width-matlength*2)/2+i*2;
-            mat.data[i][j].y = (height-matwidth*2)/4+j*2; 
+            mat.data[i][j].x = (width-matlength*2)/2+i*5;
+            mat.data[i][j].y = (height-matwidth*2)/4+j*5; 
             mat.data[i][j].xdirection = 1;
             mat.data[i][j].ydirection = 1;
         }
@@ -161,10 +168,47 @@ void clear_grid()
     }
 }
 
+void drawCircle(int X, int Y, int radius) 
+{
+    for (int x = X - radius; x <= X + radius; x++) {
+        for (int y = Y - radius; y <= Y + radius; y++) {
+            if (pow(x - X, 2) + pow(y - Y, 2) <= pow(radius, 2)) {
+                SDL_RenderDrawPoint(renderer, x, y);
+            }
+        }
+    }
+}
+
 double get_time()
 {
     return (double)(clock() - starttime) / CLOCKS_PER_SEC;
 }
+
+int get_number_of_particle()
+{
+    int out = 0;
+    for (int i = 0; i<matlength; i++) {
+        for (int j = 0; j<matwidth; j++ ) {
+            if (mat.data[i][j].x>=(width/30)-10 && mat.data[i][j].x<=width-(width/30)+10 && mat.data[i][j].y>=(height/30)-10 && mat.data[i][j].y<=height-(height/30)+10) {
+                out++;
+            }
+        }
+    }
+    return out;
+}
+
+char* complexity()
+{
+    double n = matwidth*matlength;
+    if (O>=n && O<pow(n,2)) {
+        return "O(n)";
+    } else if (O>=pow(n,2) && O<pow(n,3)) {
+        return "O(n^2)";
+    } else if (O>=pow(n,3)) {
+        return "O(n^3)";
+    }
+}
+
 
 void stat_aff(int fps)
 /*affichage des statistiques*/ 
@@ -187,33 +231,72 @@ void stat_aff(int fps)
     sprintf(texte, "temps ecoule : %-2f s", get_time());
     surface_texte = TTF_RenderText_Blended(font, texte, couleur);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+    rect_texte.y = (width/40)+45;
+    rect_texte.w = surface_texte->w;
+    rect_texte.h = surface_texte->h;
+    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+    sprintf(texte, "nombre de particule dans le cadre : %d", get_number_of_particle());
+    surface_texte = TTF_RenderText_Blended(font, texte, couleur);
+    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.y = (width/40)+30;
+    rect_texte.w = surface_texte->w;
+    rect_texte.h = surface_texte->h;
+    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+    sprintf(texte, "Complexite : T(n) = %s", complexity());
+    surface_texte = TTF_RenderText_Blended(font, texte, couleur);
+    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+    rect_texte.y = (width/40)+60;
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
     O = 0;
 } 
 
-void collision()
+
+
+/*   
+
+                    
+
+
+*/
+
+
+void gradiant(double x, double y, double* dx, double* dy)
 {
-    for (int k = 0; k<matlength; k++) {
-        for (int l = 0; l<matwidth; l++) {
-            for (int i = 0; i<matlength; i++) {
-                for (int j = 0; j<matwidth; j++) {
-                    O++;
-                    if ((mat.data[k][l].x-mat.data[i][j].x)<1) {
-                        mat.data[i][j].x += (mat.data[k][l].x+1)*mat.data[i][j].xdirection;
-                    } 
-                    O++;
-                    if ((mat.data[k][l].y-mat.data[i][j].y)<1) {
-                        mat.data[i][j].y += (mat.data[k][l].y+1)*mat.data[i][j].ydirection;
-                    } 
-                }
-            }
+    1;
+}
+/*
+void FSumUpdate()
+{
+    for (int i = 0; i<matlength; i++) {
+        for (int j = 0; j<matwidth; j++) {
+            mat.data[i][j].ax = ;
+            mat.data[i][j].ay = ;
+            mat.data[i][j].vx = *t;
+            mat.data[i][j].vy = *t;
+            mat.data[i][j].x = *t;
+            mat.data[i][j].y = *t;
         }
     }
+}*/
 
 
+
+
+void collision(int currentxpos, int currentypos, double tx, double ty) {
+
+    for (int i = 0; i<matlength; i++) {
+        for (int j = 0; j<matwidth; j++) {
+            O++;
+                /*if (((mat.data[currentxpos][currentypos].x-mat.data[i][j].x) < 1 && (mat.data[currentxpos][currentypos].y-mat.data[i][j].y)) < 1) { */
+                if (((mat.data[currentxpos][currentypos].x+mat.data[currentxpos][currentypos].y)-(mat.data[i][j].x+mat.data[i][j].y)) < 1) { 
+                    mat.data[i][j].x += 0.1*tx*mat.data[i][j].xdirection;
+                    mat.data[i][j].y += 0.1*ty*mat.data[i][j].ydirection;
+                }
+            
+        }
+    }
 }
 
 double calcule_viscosite_eau(int T)
@@ -229,17 +312,45 @@ void particle_out_of_the_grid()
 {
     for (int i = 0; i<matlength; i++) {
         for (int j = 0 ; j<matwidth; j++) {
+            O++;
             if (mat.data[i][j].x<(width/40) || mat.data[i][j].x>width-(width/40)) {
                 mat.data[i][j].xdirection *= -1;
+                mat.data[i][j].x += 0.001*mat.data[i][j].xdirection; 
                 O++;
             }
+            O++;
             if (mat.data[i][j].y<(height/40) || mat.data[i][j].y>height-(height/40)) {
                 mat.data[i][j].ydirection *= -1;
+                mat.data[i][j].y += 0.001*mat.data[i][j].ydirection; 
                 O++;
             }
         }
     }
 } 
+
+void particlewillbeout(int i, int j, double tx, double ty)
+{
+    O+=4;
+    if (mat.data[i][j].x+tx*mat.data[i][j].xdirection<(width/40)) {
+        mat.data[i][j].x += (tx-mat.data[i][j].x+tx*mat.data[i][j].xdirection-(width/40))*mat.data[i][j].xdirection;
+        mat.data[i][j].xdirection *= -1;
+        mat.data[i][j].x += (mat.data[i][j].x+tx*mat.data[i][j].xdirection-(width/40))*mat.data[i][j].xdirection;
+    } else if (mat.data[i][j].x+tx*mat.data[i][j].xdirection>width-(width/40)) {
+
+        mat.data[i][j].x += (tx-mat.data[i][j].x+tx*mat.data[i][j].xdirection-width-(width/40))*mat.data[i][j].xdirection;
+        mat.data[i][j].ydirection *= -1;
+        mat.data[i][j].x += (mat.data[i][j].x+tx*mat.data[i][j].xdirection-width-(width/40))*mat.data[i][j].xdirection;
+    }
+    if (mat.data[i][j].y+ty*mat.data[i][j].ydirection<(height/40) ) {
+        mat.data[i][j].y += (ty-mat.data[i][j].y+ty*mat.data[i][j].ydirection-(height/40))*mat.data[i][j].ydirection;
+        mat.data[i][j].ydirection *= -1;
+        mat.data[i][j].y += (mat.data[i][j].y+ty*mat.data[i][j].ydirection-(height/40))*mat.data[i][j].ydirection;
+    } else if (mat.data[i][j].y+ty*mat.data[i][j].ydirection>height-(height/40)) {
+        mat.data[i][j].y += (ty-mat.data[i][j].y+ty*mat.data[i][j].ydirection-height-(height/40))*mat.data[i][j].ydirection;
+        mat.data[i][j].ydirection *= -1;
+        mat.data[i][j].y += (mat.data[i][j].y+ty*mat.data[i][j].ydirection-height-(height/40))*mat.data[i][j].ydirection;
+    }
+}
 
 void update()
 /*mise à jour des positions de chaque particule*/
@@ -248,19 +359,21 @@ void update()
     clear_grid();
     SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
     particle_out_of_the_grid();
-    /*collision();*/
     for (int i = 0 ; i < matlength ; i++) {
         for (int j = 0 ; j < matwidth ; j++) {      
+            collision(i,j,0.05,g*Mparticle);
+            /*particlewillbeout(i,j,0.05,g*Mparticle);*/
             mat.data[i][j].y += ((g*Mparticle)*mat.data[i][j].ydirection);
-            mat.data[i][j].x += 1*mat.data[i][j].xdirection;
+            mat.data[i][j].x += 0.05*mat.data[i][j].xdirection;
             /*if (mat.data[i][j].xdirection == -1) {
                 mat.data[i][j].xdirection *= -1;
             }
             if (mat.data[i][j].ydirection == -1) {
                 mat.data[i][j].ydirection *= -1;
             }*/
+            
             O++;
-            SDL_RenderDrawPoint(renderer,mat.data[i][j].x,mat.data[i][j].y);
+            drawCircle(mat.data[i][j].x,mat.data[i][j].y,2);
         }
     }
 }
@@ -279,9 +392,31 @@ void aff()
         start_time = SDL_GetTicks();
         last_time = current_time;
         while (SDL_PollEvent(&Event)) {
-            if (Event.type == SDL_QUIT||Event.type == SDL_SCANCODE_ESCAPE) {
+            switch (Event.type) {
+                case SDL_QUIT:
                     running = 0;
+                    break;
+                case SDL_KEYDOWN:
+                    if (Event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+                        running = 0;
+                    }
+                    break;
+                case SDL_WINDOWEVENT_SIZE_CHANGED:
+                    switch (Event.window.event) {
+                        case SDL_WINDOWEVENT_SIZE_CHANGED:
+                        Width = Event.window.data1;
+                        Height = Event.window.data2;
+                        break;
+                    
+                    default:
+                        break;
+                    }
+                    break;
+                default:
+                    break;
+            
             }
+
         }
         
         update();
@@ -292,6 +427,7 @@ void aff()
         }
         stat_aff(FPS);
         SDL_RenderPresent(renderer);
+        SDL_UpdateWindowSurface(window);
     }
 
 
