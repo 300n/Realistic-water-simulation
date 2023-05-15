@@ -8,13 +8,12 @@
 #include <float.h>
 #include <stdint.h>
 
-
 #define width 1000
 #define height 1000
-#define matwidth 35
-#define matlength 35
-#define Mparticle 15/(matlength*matwidth)
-#define FPS 2000
+#define matwidth 5
+#define matlength 5
+#define Mparticle 200
+#define FPS 120
 const double pi = 3.1415926535;
 const double g =9.80665;
 SDL_Renderer* renderer;
@@ -25,6 +24,8 @@ int O = 0;
 char texte[100];
 int Width = width;
 int Height = height;
+int pradius = 20;
+double dt = 0.001;
 clock_t starttime;
 Uint32 last_time;
 Uint32 current_time;
@@ -100,10 +101,16 @@ void initmat()
 
     for (int i = 0; i<matlength; i++) {
         for (int j = 0; j<matwidth; j++) {
-            mat.data[i][j].x = (width-matlength*2)/2+i*5;
-            mat.data[i][j].y = (height-matwidth*2)/4+j*5; 
+            mat.data[i][j].x = (width-matlength*2)/2+i*pradius*2*1.5;
+            mat.data[i][j].y = (height-matwidth*2)/4+j*pradius*2*1.5; 
             mat.data[i][j].xdirection = 1;
             mat.data[i][j].ydirection = 1;
+
+            mat.data[i][j].vx = 0;
+            mat.data[i][j].vy = (g*Mparticle);
+            mat.data[i][j].ax = 0;
+            mat.data[i][j].ay = 0;
+
         }
     }
 }
@@ -209,7 +216,6 @@ char* complexity()
     }
 }
 
-
 void stat_aff(int fps)
 /*affichage des statistiques*/ 
 {
@@ -285,16 +291,27 @@ void FSumUpdate()
 
 
 void collision(int currentxpos, int currentypos, double tx, double ty) {
-
+    int temp1, temp2;
     for (int i = 0; i<matlength; i++) {
         for (int j = 0; j<matwidth; j++) {
             O++;
-                /*if (((mat.data[currentxpos][currentypos].x-mat.data[i][j].x) < 1 && (mat.data[currentxpos][currentypos].y-mat.data[i][j].y)) < 1) { */
-                if (((mat.data[currentxpos][currentypos].x+mat.data[currentxpos][currentypos].y)-(mat.data[i][j].x+mat.data[i][j].y)) < 1) { 
-                    mat.data[i][j].x += 0.1*tx*mat.data[i][j].xdirection;
-                    mat.data[i][j].y += 0.1*ty*mat.data[i][j].ydirection;
-                }
-            
+                if (i!=currentxpos && j!=currentypos) {
+                    printf("abs(mat.data[currentxpos][currentypos].y-mat.data[i][j].y) = %d\n", abs(mat.data[currentxpos][currentypos].y-mat.data[i][j].y));
+                    if ((abs(mat.data[currentxpos][currentypos].x-mat.data[i][j].x)+abs(mat.data[currentxpos][currentypos].y-mat.data[i][j].y)) <= pradius*2) {
+                        temp1 = mat.data[i][j].xdirection;
+                        temp2 = mat.data[i][j].ydirection;
+                        mat.data[i][j].xdirection = mat.data[currentxpos][currentypos].xdirection;
+                        mat.data[i][j].ydirection = mat.data[currentxpos][currentypos].ydirection;
+                        mat.data[currentxpos][currentypos].xdirection = temp1;
+                        mat.data[currentxpos][currentypos].ydirection = temp2;
+
+                        
+                        
+                        mat.data[i][j].vx = 1*mat.data[currentxpos][currentypos].vx;
+                        mat.data[i][j].vy = 1*mat.data[currentxpos][currentypos].vy ;
+                        SDL_SetRenderDrawColor(renderer, 200, 0, 0, SDL_ALPHA_OPAQUE);
+                    }   
+                }   
         }
     }
 }
@@ -330,41 +347,48 @@ void particle_out_of_the_grid()
 
 void particlewillbeout(int i, int j, double tx, double ty)
 {
-    O+=4;
-    if (mat.data[i][j].x+tx*mat.data[i][j].xdirection<(width/40)) {
-        mat.data[i][j].x += (tx-mat.data[i][j].x+tx*mat.data[i][j].xdirection-(width/40))*mat.data[i][j].xdirection;
+    O+=4;            
+    if (mat.data[i][j].x+tx*mat.data[i][j].xdirection<(width/40)+pradius) {
+        tx = abs(tx-abs((width/40)+pradius-mat.data[i][j].x));
+        mat.data[i][j].x += abs((width/40)+pradius-mat.data[i][j].x);
         mat.data[i][j].xdirection *= -1;
-        mat.data[i][j].x += (mat.data[i][j].x+tx*mat.data[i][j].xdirection-(width/40))*mat.data[i][j].xdirection;
-    } else if (mat.data[i][j].x+tx*mat.data[i][j].xdirection>width-(width/40)) {
-
-        mat.data[i][j].x += (tx-mat.data[i][j].x+tx*mat.data[i][j].xdirection-width-(width/40))*mat.data[i][j].xdirection;
-        mat.data[i][j].ydirection *= -1;
-        mat.data[i][j].x += (mat.data[i][j].x+tx*mat.data[i][j].xdirection-width-(width/40))*mat.data[i][j].xdirection;
+        mat.data[i][j].x += tx*mat.data[i][j].xdirection;
+    } else if (mat.data[i][j].x+tx*mat.data[i][j].xdirection>width-(width/40)-pradius) {    
+        tx = tx-(width-(width/40)-pradius-mat.data[i][j].x);
+        mat.data[i][j].x += (width-(width/40)-mat.data[i][j].x)-pradius;
+        mat.data[i][j].xdirection *= -1;
+        mat.data[i][j].x += tx*mat.data[i][j].xdirection;
     }
-    if (mat.data[i][j].y+ty*mat.data[i][j].ydirection<(height/40) ) {
-        mat.data[i][j].y += (ty-mat.data[i][j].y+ty*mat.data[i][j].ydirection-(height/40))*mat.data[i][j].ydirection;
+    if (mat.data[i][j].y+ty*mat.data[i][j].ydirection<(height/40)+pradius) {
+        ty = abs(ty-abs((height/40)+pradius-mat.data[i][j].y));
+        mat.data[i][j].y += abs((height/40)+pradius-mat.data[i][j].y);
         mat.data[i][j].ydirection *= -1;
-        mat.data[i][j].y += (mat.data[i][j].y+ty*mat.data[i][j].ydirection-(height/40))*mat.data[i][j].ydirection;
-    } else if (mat.data[i][j].y+ty*mat.data[i][j].ydirection>height-(height/40)) {
-        mat.data[i][j].y += (ty-mat.data[i][j].y+ty*mat.data[i][j].ydirection-height-(height/40))*mat.data[i][j].ydirection;
+        ///mat.data[i][j].y += ty*mat.data[i][j].ydirection;
+    } else if (mat.data[i][j].y+ty*mat.data[i][j].ydirection>height-(height/40)-pradius) {
+        ty = ty-(height-(height/40)-pradius-mat.data[i][j].y);
+        mat.data[i][j].y += (height-(height/40)-mat.data[i][j].y)-pradius;
         mat.data[i][j].ydirection *= -1;
-        mat.data[i][j].y += (mat.data[i][j].y+ty*mat.data[i][j].ydirection-height-(height/40))*mat.data[i][j].ydirection;
+        mat.data[i][j].y += ty*mat.data[i][j].ydirection;
     }
 }
 
-void update()
+void update()   
 /*mise à jour des positions de chaque particule*/
 {
     draw_grid();
     clear_grid();
     SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
-    particle_out_of_the_grid();
+
     for (int i = 0 ; i < matlength ; i++) {
-        for (int j = 0 ; j < matwidth ; j++) {      
-            collision(i,j,0.05,g*Mparticle);
-            /*particlewillbeout(i,j,0.05,g*Mparticle);*/
-            mat.data[i][j].y += ((g*Mparticle)*mat.data[i][j].ydirection);
-            mat.data[i][j].x += 0.05*mat.data[i][j].xdirection;
+        for (int j = 0 ; j < matwidth ; j++) {
+
+            SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
+            particlewillbeout(i,j,mat.data[i][j].vx*dt*mat.data[i][j].xdirection,mat.data[i][j].vy*dt*mat.data[i][j].ydirection);      
+            collision(i,j,mat.data[i][j].vx*dt*mat.data[i][j].xdirection,mat.data[i][j].vy*dt*mat.data[i][j].ydirection);
+            mat.data[i][j].x += mat.data[i][j].vx*dt*mat.data[i][j].xdirection;
+            mat.data[i][j].y += mat.data[i][j].vy*dt*mat.data[i][j].ydirection;
+            mat.data[i][j].vx += mat.data[i][j].ax*dt;
+            mat.data[i][j].vy += mat.data[i][j].ay*dt;
             /*if (mat.data[i][j].xdirection == -1) {
                 mat.data[i][j].xdirection *= -1;
             }
@@ -373,7 +397,7 @@ void update()
             }*/
             
             O++;
-            drawCircle(mat.data[i][j].x,mat.data[i][j].y,2);
+            drawCircle(mat.data[i][j].x,mat.data[i][j].y,pradius);
         }
     }
 }
