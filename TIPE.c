@@ -10,12 +10,12 @@
 
 #define width 1000
 #define height 1000
-#define matwidth 5
-#define matlength 5
-#define Mparticle 200
-#define FPS 120
+#define matwidth 35
+#define matlength 35
+#define Mparticle 20
+double FPS = 240;
 const double pi = 3.1415926535;
-const double g =9.80665;
+const double g = 9.80665;
 SDL_Renderer* renderer;
 SDL_Window* window;
 TTF_Font* font;
@@ -24,8 +24,7 @@ int O = 0;
 char texte[100];
 int Width = width;
 int Height = height;
-int pradius = 20;
-double dt = 0.001;
+int pradius = 4;
 clock_t starttime;
 Uint32 last_time;
 Uint32 current_time;
@@ -47,6 +46,7 @@ typedef struct point {
     double ay;
     int xdirection;
     int ydirection;
+    int* color;
 }Point;
 
 typedef struct matrice {
@@ -61,7 +61,7 @@ void initSDL()
 /*initialise SDL*/
 {
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_CreateWindowAndRenderer(Width, Height, 0, &window, &renderer);
+    SDL_CreateWindowAndRenderer(Width+600, Height, 0, &window, &renderer);
     SDL_Surface* image = NULL;
     SDL_Texture* texture = NULL; 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
@@ -101,8 +101,8 @@ void initmat()
 
     for (int i = 0; i<matlength; i++) {
         for (int j = 0; j<matwidth; j++) {
-            mat.data[i][j].x = (width-matlength*2)/2+i*pradius*2*1.5;
-            mat.data[i][j].y = (height-matwidth*2)/4+j*pradius*2*1.5; 
+            mat.data[i][j].x = (width-matlength*2*pradius)/2+i*pradius*2*1.5;
+            mat.data[i][j].y = (height-matwidth*2*pradius)/2+j*pradius*2*1.5; 
             mat.data[i][j].xdirection = 1;
             mat.data[i][j].ydirection = 1;
 
@@ -110,6 +110,11 @@ void initmat()
             mat.data[i][j].vy = (g*Mparticle);
             mat.data[i][j].ax = 0;
             mat.data[i][j].ay = 0;
+
+            mat.data[i][j].color = (int*)malloc(sizeof(int)*3);
+            mat.data[i][j].color[0] = 0;
+            mat.data[i][j].color[1] = 0;
+            mat.data[i][j].color[2] = 255;
 
         }
     }
@@ -186,6 +191,23 @@ void drawCircle(int X, int Y, int radius)
     }
 }
 
+void drawstatgrid()
+{
+    SDL_SetRenderDrawColor(renderer, 22, 22, 22, SDL_ALPHA_OPAQUE);
+    square.x = width;
+    square.y = 0;
+    square.h = height;
+    square.w = width+600;
+    SDL_RenderFillRect(renderer, &square);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+    SDL_RenderDrawLine(renderer,width+20,height/40,width+560,height/40);
+    SDL_RenderDrawLine(renderer,width+20,height/40,width+20,height-height/40);
+    SDL_RenderDrawLine(renderer,width+20,height-height/40,width+560,height-height/40);
+    SDL_RenderDrawLine(renderer,width+560,height-height/40,width+560,height/40);
+
+    
+}
+
 double get_time()
 {
     return (double)(clock() - starttime) / CLOCKS_PER_SEC;
@@ -222,36 +244,36 @@ void stat_aff(int fps)
     sprintf(texte, "fps : %d", fps);
     surface_texte = TTF_RenderText_Blended(font, texte, couleur);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.x = (height/40)+5;
-    rect_texte.y = (width/40);
+    rect_texte.x = width+30;
+    rect_texte.y = (width/40)+10;
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
     sprintf(texte, "nombre d'operations par frame : %d", O);
     surface_texte = TTF_RenderText_Blended(font, texte, couleur);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.y = (width/40)+15;
+    rect_texte.y += 30;
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
     sprintf(texte, "temps ecoule : %-2f s", get_time());
     surface_texte = TTF_RenderText_Blended(font, texte, couleur);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.y = (width/40)+45;
+    rect_texte.y += 30;
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
     sprintf(texte, "nombre de particule dans le cadre : %d", get_number_of_particle());
     surface_texte = TTF_RenderText_Blended(font, texte, couleur);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.y = (width/40)+30;
+    rect_texte.y += 30;
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
     sprintf(texte, "Complexite : T(n) = %s", complexity());
     surface_texte = TTF_RenderText_Blended(font, texte, couleur);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.y = (width/40)+60;
+    rect_texte.y += 30;
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
@@ -290,28 +312,32 @@ void FSumUpdate()
 
 
 
-void collision(int currentxpos, int currentypos, double tx, double ty) {
-    int temp1, temp2;
-    for (int i = 0; i<matlength; i++) {
-        for (int j = 0; j<matwidth; j++) {
-            O++;
-                if (i!=currentxpos && j!=currentypos) {
-                    printf("abs(mat.data[currentxpos][currentypos].y-mat.data[i][j].y) = %d\n", abs(mat.data[currentxpos][currentypos].y-mat.data[i][j].y));
-                    if ((abs(mat.data[currentxpos][currentypos].x-mat.data[i][j].x)+abs(mat.data[currentxpos][currentypos].y-mat.data[i][j].y)) <= pradius*2) {
-                        temp1 = mat.data[i][j].xdirection;
-                        temp2 = mat.data[i][j].ydirection;
-                        mat.data[i][j].xdirection = mat.data[currentxpos][currentypos].xdirection;
-                        mat.data[i][j].ydirection = mat.data[currentxpos][currentypos].ydirection;
-                        mat.data[currentxpos][currentypos].xdirection = temp1;
-                        mat.data[currentxpos][currentypos].ydirection = temp2;
+void collision() {
+    int temp1, temp2, x, y;
+    for (int k = 0 ; k<matlength ; k++) {
+        for (int n = 0 ; n<matwidth ; n++ ) {
+            for (int i = 0; i<matlength; i++) {
+                for (int j = 0; j<matwidth; j++) {
+                    O++;
+                    if (i!=k || j!=n) {
+                        if ((abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y)) < pradius*2) {
+                            x = mat.data[k][n].x - mat.data[i][j].x;
+                            y = mat.data[k][n].y - mat.data[i][j].y;
+                            if (abs(x) >= abs(y)) {
+                                mat.data[k][n].xdirection = (int)x/abs(x);
+                                mat.data[k][n].ydirection = (int)y/abs(x);
+                            } else  {
+                                mat.data[k][n].xdirection = (int)y/abs(y);
+                                mat.data[k][n].ydirection = (int)y/abs(y);
+                            }
+                            
+                            mat.data[k][n].vx = 0.99*((mat.data[i][j].vx+mat.data[k][n].vx)/2);
+                            mat.data[k][n].vy = 0.99*((mat.data[i][j].vy+mat.data[k][n].vy)/2);
 
-                        
-                        
-                        mat.data[i][j].vx = 1*mat.data[currentxpos][currentypos].vx;
-                        mat.data[i][j].vy = 1*mat.data[currentxpos][currentypos].vy ;
-                        SDL_SetRenderDrawColor(renderer, 200, 0, 0, SDL_ALPHA_OPAQUE);
+                        }
                     }   
                 }   
+            }
         }
     }
 }
@@ -324,79 +350,61 @@ double calcule_viscosite_eau(int T)
     return viscositer ;
 }
 
+
+
 void particle_out_of_the_grid()
 /*Détecte une sortie de l'écran*/
 {
-    for (int i = 0; i<matlength; i++) {
-        for (int j = 0 ; j<matwidth; j++) {
-            O++;
-            if (mat.data[i][j].x<(width/40) || mat.data[i][j].x>width-(width/40)) {
-                mat.data[i][j].xdirection *= -1;
-                mat.data[i][j].x += 0.001*mat.data[i][j].xdirection; 
-                O++;
+    for (int i = 0; i<matlength; i++) { 
+        for (int j = 0; j<matwidth ; j++) {
+            O+=4;           
+            if (mat.data[i][j].x<(width/40)+pradius && mat.data[i][j].xdirection!= 1) {
+                mat.data[i][j].vx *= 0.99;
+                mat.data[i][j].xdirection = 1;
+            } else if (mat.data[i][j].x>width-(width/40)-pradius && mat.data[i][j].xdirection!= -1) {    
+                mat.data[i][j].vx *= 0.99;
+                mat.data[i][j].xdirection = -1;
             }
-            O++;
-            if (mat.data[i][j].y<(height/40) || mat.data[i][j].y>height-(height/40)) {
-                mat.data[i][j].ydirection *= -1;
-                mat.data[i][j].y += 0.001*mat.data[i][j].ydirection; 
-                O++;
+            if (mat.data[i][j].y<(height/40)+pradius && mat.data[i][j].ydirection!= 1) {
+                mat.data[i][j].vy *= 0.99;
+                mat.data[i][j].ydirection = 1;
+            } else if (mat.data[i][j].y>height-(height/40)-pradius && mat.data[i][j].ydirection!= -1) {
+                mat.data[i][j].vy *= 0.99;
+                mat.data[i][j].ydirection = -1;
             }
         }
     }
-} 
 
-void particlewillbeout(int i, int j, double tx, double ty)
-{
-    O+=4;            
-    if (mat.data[i][j].x+tx*mat.data[i][j].xdirection<(width/40)+pradius) {
-        tx = abs(tx-abs((width/40)+pradius-mat.data[i][j].x));
-        mat.data[i][j].x += abs((width/40)+pradius-mat.data[i][j].x);
-        mat.data[i][j].xdirection *= -1;
-        mat.data[i][j].x += tx*mat.data[i][j].xdirection;
-    } else if (mat.data[i][j].x+tx*mat.data[i][j].xdirection>width-(width/40)-pradius) {    
-        tx = tx-(width-(width/40)-pradius-mat.data[i][j].x);
-        mat.data[i][j].x += (width-(width/40)-mat.data[i][j].x)-pradius;
-        mat.data[i][j].xdirection *= -1;
-        mat.data[i][j].x += tx*mat.data[i][j].xdirection;
-    }
-    if (mat.data[i][j].y+ty*mat.data[i][j].ydirection<(height/40)+pradius) {
-        ty = abs(ty-abs((height/40)+pradius-mat.data[i][j].y));
-        mat.data[i][j].y += abs((height/40)+pradius-mat.data[i][j].y);
-        mat.data[i][j].ydirection *= -1;
-        ///mat.data[i][j].y += ty*mat.data[i][j].ydirection;
-    } else if (mat.data[i][j].y+ty*mat.data[i][j].ydirection>height-(height/40)-pradius) {
-        ty = ty-(height-(height/40)-pradius-mat.data[i][j].y);
-        mat.data[i][j].y += (height-(height/40)-mat.data[i][j].y)-pradius;
-        mat.data[i][j].ydirection *= -1;
-        mat.data[i][j].y += ty*mat.data[i][j].ydirection;
-    }
 }
 
-void update()   
+void update(double dt)   
 /*mise à jour des positions de chaque particule*/
 {
     draw_grid();
+    drawstatgrid();
     clear_grid();
     SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
 
+
+    for (int i = 0 ; i<matlength ; i++ ){
+        for (int j = 0 ; j<matwidth ; j++ ) {
+            mat.data[i][j].color[0] = 0;
+            mat.data[i][j].color[1] = 0;
+            mat.data[i][j].color[2] = 255;
+        }
+    }
+    collision(); 
+    particle_out_of_the_grid();
     for (int i = 0 ; i < matlength ; i++) {
         for (int j = 0 ; j < matwidth ; j++) {
 
-            SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
-            particlewillbeout(i,j,mat.data[i][j].vx*dt*mat.data[i][j].xdirection,mat.data[i][j].vy*dt*mat.data[i][j].ydirection);      
-            collision(i,j,mat.data[i][j].vx*dt*mat.data[i][j].xdirection,mat.data[i][j].vy*dt*mat.data[i][j].ydirection);
             mat.data[i][j].x += mat.data[i][j].vx*dt*mat.data[i][j].xdirection;
             mat.data[i][j].y += mat.data[i][j].vy*dt*mat.data[i][j].ydirection;
             mat.data[i][j].vx += mat.data[i][j].ax*dt;
             mat.data[i][j].vy += mat.data[i][j].ay*dt;
-            /*if (mat.data[i][j].xdirection == -1) {
-                mat.data[i][j].xdirection *= -1;
-            }
-            if (mat.data[i][j].ydirection == -1) {
-                mat.data[i][j].ydirection *= -1;
-            }*/
             
             O++;
+            SDL_SetRenderDrawColor(renderer, mat.data[i][j].color[0], mat.data[i][j].color[1], mat.data[i][j].color[2], SDL_ALPHA_OPAQUE);
             drawCircle(mat.data[i][j].x,mat.data[i][j].y,pradius);
         }
     }
@@ -443,7 +451,7 @@ void aff()
 
         }
         
-        update();
+        update(1/FPS);
         end_time = SDL_GetTicks();
         elapsed_time = end_time - start_time;
         if (elapsed_time < 1000 / FPS) {
