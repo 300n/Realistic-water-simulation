@@ -10,10 +10,10 @@
 
 #define width 1000
 #define height 1000
-#define matwidth 20
-#define matlength 20
+#define matwidth 30
+#define matlength 30
 #define Mparticle 20
-#define pradius 6
+#define pradius 2
 
 double FPS = 60;
 const double pi = 3.1415926535;
@@ -135,7 +135,7 @@ void initmat()
             mat.data[i][j].xdirection = 1;
             mat.data[i][j].ydirection = 1;
 
-            mat.data[i][j].vx = 0;
+            mat.data[i][j].vx = 100;
             mat.data[i][j].vy = 0;
             mat.data[i][j].ax = 0;
             mat.data[i][j].ay = 0;
@@ -365,9 +365,6 @@ void getCPUstat()
 
 }
 
-
-
-
 void stat_aff(int fps)
 /*affichage des statistiques*/ 
 {
@@ -416,9 +413,6 @@ void stat_aff(int fps)
     }*/
 } 
 
-
-
-
 double Eularian_distance(int i, int j, int k, int n)
 {
     return abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y);
@@ -428,7 +422,6 @@ void gradiant(double x, double y, double* dx, double* dy)
 {
 
 }
-
 
 double calcul_pression(int i, int j)
 {
@@ -521,9 +514,6 @@ void viscosity()
 
 */
 
-
-
-
 void collision() {
     int temp1, temp2, x, y;
     for (int k = 0 ; k<matlength ; k++) {
@@ -535,16 +525,38 @@ void collision() {
                         if (Eularian_distance(k,n,i,j) < pradius*2) {
                             x = mat.data[k][n].x - mat.data[i][j].x;
                             y = mat.data[k][n].y - mat.data[i][j].y;
-                            if (abs(x) >= abs(y)) {
+                            /*if (abs(x) >= abs(y)) {
+                                printf("x = %lf || y = %lf\n", x, y);
                                 mat.data[k][n].xdirection = (int)x/abs(x);
                                 mat.data[k][n].ydirection = (int)y/abs(x);
                             } else  {
+                                printf("x = %lf || y = %lf\n", x, y);
                                 mat.data[k][n].xdirection = (int)y/abs(y);
                                 mat.data[k][n].ydirection = (int)y/abs(y);
-                            }
+                            }*/
                             
-                            //mat.data[k][n].vx = 1*((mat.data[i][j].vx+mat.data[k][n].vx)/2);
-                            //mat.data[k][n].vy = 1*((mat.data[i][j].vy+mat.data[k][n].vy)/2);
+                            if (x<0) {
+                                mat.data[k][n].xdirection = -1;
+                            } else if (x>0) {
+                                mat.data[k][n].xdirection = 1;
+                            }
+                            if (y<0) {
+                                mat.data[k][n].ydirection = -1;
+                            } else if (y>0) {
+                                mat.data[k][n].ydirection = 1;
+                            }
+
+                            //mat.data[k][n].xdirection *= -1;
+                            //mat.data[k][n].ydirection *= -1;
+                            
+
+
+                            /*mat.data[k][n].color[0] = 255;
+                            mat.data[k][n].color[1] = 0;
+                            mat.data[k][n].color[2] = 0;*/
+
+                            mat.data[k][n].vx = 0.99*((mat.data[i][j].vx+mat.data[k][n].vx)/2);
+                            mat.data[k][n].vy = 0.99*((mat.data[i][j].vy+mat.data[k][n].vy)/2);
 
                         }
                     }   
@@ -573,16 +585,28 @@ void particle_out_of_the_grid()
             if (mat.data[i][j].x<(width/40)+pradius && mat.data[i][j].xdirection!= 1) {
                 //mat.data[i][j].vx *= 0.99;
                 mat.data[i][j].xdirection = 1;
+                /*mat.data[i][j].color[0] = 255;
+                mat.data[i][j].color[1] = 0;
+                mat.data[i][j].color[2] = 0;*/
             } else if (mat.data[i][j].x>width-(width/40)-pradius && mat.data[i][j].xdirection!= -1) {    
                 //mat.data[i][j].vx *= 0.99;
                 mat.data[i][j].xdirection = -1;
+                /*mat.data[i][j].color[0] = 255;
+                mat.data[i][j].color[1] = 0;
+                mat.data[i][j].color[2] = 0;*/
             }
             if (mat.data[i][j].y<(height/40)+pradius && mat.data[i][j].ydirection!= 1) {
                 //mat.data[i][j].vy *= 0.99;
                 mat.data[i][j].ydirection = 1;
+                /*mat.data[i][j].color[0] = 255;
+                mat.data[i][j].color[1] = 0;
+                mat.data[i][j].color[2] = 0;*/
             } else if (mat.data[i][j].y>height-(height/40)-pradius && mat.data[i][j].ydirection!= -1) {
                 //mat.data[i][j].vy *= 0.99;
                 mat.data[i][j].ydirection = -1;
+                /*mat.data[i][j].color[0] = 255;
+                mat.data[i][j].color[1] = 0;
+                mat.data[i][j].color[2] = 0;*/
             }
         }
     }
@@ -616,11 +640,12 @@ void update()
     for (int i = 0 ; i < matlength ; i++) {
         for (int j = 0 ; j < matwidth ; j++) {
 
-            mat.data[i][j].x += mat.data[i][j].vx*dt*mat.data[i][j].xdirection;
-            mat.data[i][j].y += mat.data[i][j].vy*dt*mat.data[i][j].ydirection;
+
+            printf("OUI = > %lf\n", mat.data[i][j].y);
             mat.data[i][j].vx += mat.data[i][j].ax*dt;
             mat.data[i][j].vy += g*dt;
-            
+            mat.data[i][j].x += mat.data[i][j].vx*dt*mat.data[i][j].xdirection;
+            mat.data[i][j].y += mat.data[i][j].vy*dt*mat.data[i][j].ydirection;
             O++;
             SDL_SetRenderDrawColor(renderer, mat.data[i][j].color[0], mat.data[i][j].color[1], mat.data[i][j].color[2], SDL_ALPHA_OPAQUE);
             drawCircle(mat.data[i][j].x,mat.data[i][j].y,pradius);
