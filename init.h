@@ -11,8 +11,8 @@
 #include <dirent.h> 
 
 
-#define matwidth 35
-#define matlength 35
+#define matwidth 25 
+#define matlength 25
 #define width 1000
 #define height 1000
 #define pradius 3
@@ -33,6 +33,7 @@ char comm[256];
 
 
 typedef struct point {
+    double density;
     double x;
     double y;
     double vx;

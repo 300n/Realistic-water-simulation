@@ -26,18 +26,19 @@ double dt;
 
 
 double d0 = 1000;
-double h = 0.5;
+double h = 6;
+
+/*Coefficient de normalisation Cd pour le noyau de Wendland*/
+double Cd; /*Valeur de Cd pour un espace 2D (Pour un espace 3D Cd = 21/(6*pi*h*h*h)*/
+
+double m = 0.1;
+
+double mu_eau = 0.0001;
 
 // ?
-double m = 1000*0.5*0.5;
-
-double nu = 3;
-
-// ?
-double p0 = 1000*981*981/7;
-
-// ? 
-double rho = 0;
+double p0 = 0;
+double density0;
+double k = 0.01;
 
 
 Uint32 last_time;
@@ -47,6 +48,28 @@ Uint32 current_time;
 
 
 
+double W(double q) {
+    return 7/(4*pi*h*h)* pow(1.0 - q, 4) * (4.0 * q + 1.0);
+}
+
+double calcul_pression(int i, int j)
+{
+    return k*(mat.data[i][j].density-density0);
+}
+
+
+double Derive_partielle1ere_Q(double q, double h)
+{
+    double fq = W(q + h) - W(q - h);
+    return fq/(2*h);
+}
+
+double Derive_partielle2nd_Q(double q, double h) {
+    double fqq = W(q + h) - 2.0 * W(q) + W(q - h);
+    return fqq / (h * h);
+}   
+
+
 
 
 double Eularian_distance(int i, int j, int k, int n)
@@ -54,77 +77,77 @@ double Eularian_distance(int i, int j, int k, int n)
     return abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y);
 }
 
-void gradiant(double x, double y, double* dx, double* dy)
-{
 
-}
-
-double calcul_pression(int i, int j)
+void Calcul_density()
 {
-    double output = p0*(pow((rho/d0), 7) - 1);
-    if (output<1) {
-        output = 1;
-    }
-    return output;
-}
-
-/*
-void Pression_forces()
-{
-    double q, output, h =10, pk, pi, rho_k, rho_i, gradiantkern;
-    for (int k = 0 ; k<matlength; k++) {
-        for (int n = 0; n<matwidth; n++) {
-            output = 0;
-            pk = calcul_pression(k,n);
-            rho_k = rho[k]*rho[k];
-            for (int i = 0; i<matlength; i++) {
-                for (int j = 0; j<matwidth; j++) {
-                    if (i!=k || j!=n) {
-                        q = Eularian_distance(k,n,i,j)/h;
-                        if (q<1) {
-                            gradiantkern = gradiant_kern(k,n,i,j);
-                            pi = calcul_pression(i,j);
-                            rho_i = rho[i]*rho[i];
-                            output += ( (pk/rho_k) + (pi/rho_i))*gradiantkern;
-                        }
-                    }
-                }
-            }
-            mat.data[k][n].vx += output*dt;
-            mat.data[k][n].vy += output*dt;
-
-        }
-    }
-}
-*/
-void viscosity()
-{
-    double sigma = 0, beta = 0.1, h = 10, q, u, I;
-    for (int k = 0; k<matlength ; k++) {
-        for (int n = 0; n<matwidth; n++) {
+    double q, weight;
+    for (int k = 0; k<matlength; k++) {
+        for (int n = 0; n<matlength; n++) {
+            mat.data[k][n].density = 0;
             for (int i = 0; i<matlength; i++) {
                 for (int j = 0; j<matwidth; j++) {
                     O++;
                     if (i!=k || j!=n) {
                         q = (abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y))/h;
                         if (q<1) {
-                            u = ((mat.data[k][n].vx+mat.data[k][n].vy)-(mat.data[i][j].vx+mat.data[i][j].vy)) * (abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y));
-                            printf("u = %lf\n", u);
-                            if (u>0) {
-                                I = (0.01*(1-q)*(sigma*u-beta*u*u));
-                                printf("I = %lf\n", I);
-                                mat.data[k][n].vx -= I/2;
-                                mat.data[k][n].vy -= I/2;
-                                
-                                mat.data[i][j].vx += I/2;
-                                mat.data[i][j].vy += I/2;
-                            }
+                            weight = W(q);
+                            mat.data[k][n].density += weight*m;
                         }
                     }
                 }
             }
         }
     }
+}
+
+
+void viscosity()
+{
+    double sigmaX, sigmaY, q;
+    for (int k = 0; k<matlength ; k++) {
+        for (int n = 0; n<matwidth; n++) {
+            sigmaX = 0;
+            sigmaY= 0;
+            for (int i = 0; i<matlength; i++) {
+                for (int j = 0; j<matwidth; j++) {
+                    O++;
+                    if (i!=k || j!=n) {
+                        q = (abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y))/h;
+                        if (q<1) {
+                            sigmaX += m*(abs(mat.data[i][j].vx-mat.data[k][n].vx))*Derive_partielle2nd_Q(q,h)/mat.data[i][j].density;
+                            sigmaY += m*(abs(mat.data[i][j].vy-mat.data[k][n].vy))*Derive_partielle2nd_Q(q,h)/mat.data[i][j].density;
+
+                        }
+                    }
+                }
+            }
+            mat.data[k][n].vx += mu_eau*sigmaX;
+            mat.data[k][n].vy += mu_eau*sigmaY;
+        }
+    }
+}
+
+void pressure()
+{
+    double sigma, q;
+     for (int k = 0; k<matlength ; k++) {
+        for (int n = 0; n<matwidth; n++) {
+            sigma = 0;
+            for (int i = 0; i<matlength; i++) {
+                for (int j = 0; j<matwidth; j++) {
+                    O++;
+                    if (i!=k || j!=n) {
+                        q = (abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y))/h;
+                        if (q<1) {
+                            sigma += m*((calcul_pression(k,n)+calcul_pression(i,j))/(2*mat.data[i][j].density))*Derive_partielle1ere_Q(q,h); 
+                        }
+                    }
+                }
+            }
+            mat.data[k][n].vx -= sigma;
+            mat.data[k][n].vy -= sigma;
+        }
+     }
 }
 
 
@@ -217,9 +240,11 @@ void update()
             mat.data[i][j].color[2] = 255;
         }
     }
+    Calcul_density();
     collision(); 
     particle_out_of_the_grid();
     viscosity();
+    pressure();
 
 
     for (int i = 0 ; i < matlength ; i++) {
