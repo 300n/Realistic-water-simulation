@@ -11,13 +11,29 @@
 
 
 
-
-SDL_Color white = { 255, 255, 255, SDL_ALPHA_OPAQUE};
-char texte[100];
+// void Setup_Drawcolor(char* color) 
+// {
+//     if (strcmp(color,"White")==1 || strcmp(color,"white") == 1) {SDL_SetRenderDrawColor(renderer,255,255,255,SDL_ALPHA_OPAQUE);
+//     } else if (strcmp(color,"Red")==1 || strcmp(color,"red") == 1) {SDL_SetRenderDrawColor(renderer,255,0,0,SDL_ALPHA_OPAQUE);
+//     } else if (strcmp(color,"Green")==1 || strcmp(color,"green") == 1) {SDL_SetRenderDrawColor(renderer,0,255,0,SDL_ALPHA_OPAQUE);
+//     } else if (strcmp(color,"Blue")==1 || strcmp(color,"blue") == 1) {SDL_SetRenderDrawColor(renderer,0,0,255,SDL_ALPHA_OPAQUE);
+//     } else if (strcmp(color,"Yellow")==1 || strcmp(color,"yellow") == 1) {SDL_SetRenderDrawColor(renderer,255,255,0,SDL_ALPHA_OPAQUE);
+//     } else if (strcmp(color,"Orange")==1 || strcmp(color,"orange") == 1) {SDL_SetRenderDrawColor(renderer,255,128,0,SDL_ALPHA_OPAQUE);
+//     } else if (strcmp(color,"Cyan")==1 || strcmp(color,"cyan") == 1) {SDL_SetRenderDrawColor(renderer,0,255,255,SDL_ALPHA_OPAQUE);
+//     } else if (strcmp(color,"Pink")==1 || strcmp(color,"pink") == 1) {SDL_SetRenderDrawColor(renderer,255,0,255,SDL_ALPHA_OPAQUE);
+//     } else if (strcmp(color,"PRed")==1 || strcmp(color,"pred") == 1) {SDL_SetRenderDrawColor(renderer,255, 51,51,SDL_ALPHA_OPAQUE);
+//     } else if (strcmp(color,"POrange")==1 || strcmp(color,"porange") == 1) {SDL_SetRenderDrawColor(renderer,255,178,102,SDL_ALPHA_OPAQUE);
+//     } else if (strcmp(color,"PYellow")==1 || strcmp(color,"pyellow") == 1) {SDL_SetRenderDrawColor(renderer,255,255,102,SDL_ALPHA_OPAQUE);
+//     } else if (strcmp(color,"PGreen")==1 || strcmp(color,"pgreen") == 1) {SDL_SetRenderDrawColor(renderer,102,255,102,SDL_ALPHA_OPAQUE);
+//     } else if (strcmp(color,"PCyan")==1 || strcmp(color,"pcyan") == 1) {SDL_SetRenderDrawColor(renderer,102,255,255,SDL_ALPHA_OPAQUE);
+//     } else if (strcmp(color,"PBlue")==1 || strcmp(color,"pblue") == 1) {SDL_SetRenderDrawColor(renderer,102,102,255,SDL_ALPHA_OPAQUE);
+//     } else if (strcmp(color,"PPink")==1 || strcmp(color,"ppink") == 1) {SDL_SetRenderDrawColor(renderer,255,102,178,SDL_ALPHA_OPAQUE);
+//     }
+// }
 
 void draw_Cartesian_axes()
 {
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+    SDL_SetRenderDrawColor(renderer,255,255,255,SDL_ALPHA_OPAQUE);
     SDL_RenderDrawLine(renderer,height/40+(((height-(height/20))/20)),width-(width*3/40)-(width/150),height/40+(((height-(height/20))/20)*2),width-(width*3/40)-(width/150));
     SDL_RenderDrawLine(renderer,(height/40*3)-(height/275),(width/40)+(((width-(width/20))/20)*18),(height/40*3)-(height/275),(width/40)+(((width-(width/20))/20)*19));
 
@@ -86,9 +102,9 @@ void drawstatgrid()
     SDL_RenderFillRect(renderer, &square);
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
     SDL_RenderDrawLine(renderer,width+20,height/40,width+560,height/40);
-    SDL_RenderDrawLine(renderer,width+20,height/40,width+20,height-height/40);
-    SDL_RenderDrawLine(renderer,width+20,height-height/40,width+560,height-height/40);
-    SDL_RenderDrawLine(renderer,width+560,height-height/40,width+560,height/40);
+    SDL_RenderDrawLine(renderer,width+20,height/40,width+20,height/2-height/40);
+    SDL_RenderDrawLine(renderer,width+20,height/2-height/40,width+560,height/2-height/40);
+    SDL_RenderDrawLine(renderer,width+560,height/2-height/40,width+560,height/40);
 
     
 }
@@ -101,4 +117,107 @@ void clear_grid()
             SDL_RenderDrawPoint(renderer,mat.data[i][j].x,mat.data[i][j].y);
         }
     }
+}
+
+
+
+void drawcpudata()
+{
+    SDL_Rect bar, legend;
+    SDL_SetRenderDrawColor(renderer, 22, 22, 22, SDL_ALPHA_OPAQUE);
+    square.x = width;
+    square.y = height/2;
+    square.h = height/2;
+    square.w = width+600;
+    SDL_RenderFillRect(renderer, &square);
+    SDL_SetRenderDrawColor(renderer,255,255,255,SDL_ALPHA_OPAQUE);
+
+    square.x = width+20;
+    square.y = height/40+height/2;
+    square.w = 540;
+    square.h = height/2-height/20;
+    SDL_RenderDrawRect(renderer,&square);
+
+
+
+
+    sprintf(texte, "Utilisation du CPU en %% (%-2f%%)", cpu_tot);
+    cpu_tot = 0;
+    surface_texte = TTF_RenderText_Blended(font, texte, white);
+    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+    rect_texte.w = surface_texte->w;
+    rect_texte.h = surface_texte->h;
+    rect_texte.x = width+600/2-rect_texte.w/2;
+    rect_texte.y = height/2+height/20;
+    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+
+
+
+    square.x = width+100+5;
+    square.y = height-height/3-height/14+5;
+    square.h = 50;
+    square.w = 400;
+    for (int i = 0 ;i<5; i++) {
+        square.x--;
+        square.y--;
+        SDL_RenderDrawRect(renderer,&square);
+    }
+    SDL_SetRenderDrawColor(renderer, 50, 50, 50, SDL_ALPHA_OPAQUE);
+    for (int i = 1; i<40; i++) {
+        SDL_RenderDrawLine(renderer, square.x+(square.w/40)*i+5,square.y+5,square.x+(square.w/40)*i+7,square.y+square.h-2);
+    }
+
+    bar.x = square.x+5;
+    bar.y = square.y+5;
+    bar.h = square.h-6;
+
+    legend.x = width+100;
+    legend.y = height/2+height/6;
+    legend.w = width/40;
+    legend.h = height/40; 
+    int temp = 0;
+    for (int i = 0; i<20; i++) {
+        if (prog[i].PID!=0 && prog[i].cpu_usage>0.8 && prog[i].PID<20000) {
+            // SDL_SetRenderDrawColor(renderer,prog[i].color.R,prog[i].color.G,prog[i].color.B,SDL_ALPHA_OPAQUE);
+            SDL_SetRenderDrawColor(renderer,Palette[temp%7].R,Palette[temp%7].G,Palette[temp%7].B,SDL_ALPHA_OPAQUE);
+            bar.w = square.w*(prog[i].cpu_usage/100);
+            cpu_tot += prog[i].cpu_usage;
+            SDL_RenderFillRect(renderer,&bar);
+            bar.x += bar.w;
+            temp++;
+
+
+
+
+            //printf("legend.x = %d, legend.y = %d, legend.w = %d, legend.h = %d\n", legend.x, legend.y, legend.w, legend.h);
+            SDL_RenderFillRect(renderer,&legend);
+            SDL_SetRenderDrawColor(renderer,255,255,255,SDL_ALPHA_OPAQUE);
+            SDL_RenderDrawRect(renderer,&legend);
+            strcpy(texte,prog[i].id);
+            char* texte1 = strtok(texte, "(");
+            char* texte2 = strtok(texte1, ")");
+
+
+            surface_texte = TTF_RenderText_Blended(font, texte2, white);
+            texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+            rect_texte.x = legend.x + 30    ;
+            rect_texte.y = legend.y;
+            rect_texte.w = surface_texte->w;
+            rect_texte.h = surface_texte->h;
+            SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+            sprintf(texte, "(%-2f %%)", prog[i].cpu_usage);
+            surface_texte = TTF_RenderText_Blended(font, texte, white);
+            texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+            rect_texte.x += rect_texte.w+5;
+            rect_texte.w = surface_texte->w;
+            rect_texte.h = surface_texte->h;
+            SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+
+            
+            legend.y += height/40+2;
+
+
+
+        }   
+    }    
 }

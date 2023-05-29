@@ -96,7 +96,7 @@ void Pression_forces()
         }
     }
 }
-
+*/
 void viscosity()
 {
     double sigma = 0, beta = 0.1, h = 10, q, u, I;
@@ -127,7 +127,7 @@ void viscosity()
     }
 }
 
-*/
+
 
 void collision() {
     int temp1, temp2, x, y;
@@ -151,11 +151,6 @@ void collision() {
                                 } else if (y>0) {
                                     mat.data[k][n].ydirection = 1;
                                 }
-
-                                /*mat.data[k][n].color[0] = 255;
-                                mat.data[k][n].color[1] = 0;
-                                mat.data[k][n].color[2] = 0;*/
-
                                 mat.data[k][n].vx = 0.9*((mat.data[i][j].vx+mat.data[k][n].vx)/2);
                                 mat.data[k][n].vy = 0.9*((mat.data[i][j].vy+mat.data[k][n].vy)/2);
 
@@ -186,13 +181,17 @@ void particle_out_of_the_grid()
             O+=4;           
             if (mat.data[i][j].x<(width/40)+pradius && mat.data[i][j].xdirection!= 1) {
                 mat.data[i][j].xdirection = 1;
+                mat.data[i][j].vx *= 0.9;
             } else if (mat.data[i][j].x>width-(width/40)-pradius && mat.data[i][j].xdirection!= -1) {    
                 mat.data[i][j].xdirection = -1;
+                mat.data[i][j].vx *= 0.9;
             }
             if (mat.data[i][j].y<(height/40)+pradius && mat.data[i][j].ydirection!= 1) {
                 mat.data[i][j].ydirection = 1;
+                mat.data[i][j].vy *= 0.9;
             } else if (mat.data[i][j].y>height-(height/40)-pradius && mat.data[i][j].ydirection!= -1) {
                 mat.data[i][j].ydirection = -1;
+                mat.data[i][j].vy *= 0.9;
             }
         }
     }
@@ -202,11 +201,11 @@ void particle_out_of_the_grid()
 void update()   
 /*mise à jour des positions de chaque particule*/
 {
-    draw_grid();
-    drawstatgrid();
     clear_grid();
+    
+    drawstatgrid();
+    draw_grid();
     SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
-
 
     for (int i = 0 ; i<matlength ; i++ ){
         for (int j = 0 ; j<matwidth ; j++ ) {
@@ -220,7 +219,7 @@ void update()
     }
     collision(); 
     particle_out_of_the_grid();
-    //viscosity();
+    viscosity();
 
 
     for (int i = 0 ; i < matlength ; i++) {
@@ -247,6 +246,8 @@ void aff()
     Uint32 start_time, end_time, elapsed_time, pausedtime;
     restart:
     initmat();
+    init_prog();
+    init_Palette();
     starttime = clock();
     while (running) {
         start_time = SDL_GetTicks();
@@ -345,7 +346,8 @@ void aff()
         if (elapsed_time < 1000 / FPS) {
             SDL_Delay((1000 / FPS) - elapsed_time);
         }
-        stat_aff(FPS);
+        
+        stat_aff(elapsed_time);
         SDL_RenderPresent(renderer);
         SDL_UpdateWindowSurface(window);
     }

@@ -9,13 +9,10 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <dirent.h>
+
 #include "Draw_module.h"
 
 
-clock_t starttime;
-int O = 0;
-char comm[256];
-int color[21] = {255,255,255, 255,0,0, 0,255,0, 0,0,255, 128,128,0, 128,0,128, 0,128,128};
 
 int get_number_of_particle()
 {
@@ -50,103 +47,123 @@ char* complexity()
 }
 
 
-unsigned long get_cpu_time(const char* pid) {
-    char stat_file_path[256];
+unsigned long get_cpu_time(const char* pid) 
+{
+
+    char line[256];
     snprintf(stat_file_path, sizeof(stat_file_path), "/proc/%s/stat", pid);
     FILE* stat_file = fopen(stat_file_path, "r");
     if (stat_file != NULL) {
-        char state;
-        int ppid;
-        int pgrp;
-        int session;
-        int tty_nr;
-        int tpgid;
-        unsigned int flags;
-        unsigned long minflt;
-        unsigned long cminflt;
-        unsigned long majflt;
-        unsigned long cmajflt;
-        unsigned long utime;
-        unsigned long stime;
-        long cutime;
-        long cstime;
-        long priority;
-        long nice;
-        long num_threads;
-        long long starttime;
-        O++;
-        fscanf(stat_file, "%*d %s %c %d %d %d %d %d %u %lu %lu %lu %lu %lu %lu %ld %ld %ld %ld %ld %lld",
-               comm, &state, &ppid, &pgrp, &session, &tty_nr, &tpgid, &flags, &minflt, &cminflt,
-               &majflt, &cmajflt, &utime, &stime, &cutime, &cstime, &priority, &nice, &num_threads,
-               &starttime);
-
+        fscanf(stat_file, "%*d %255s %*c %*d %*d %*d %*d %*d %*u %*lu %*lu %*lu %*lu %lu %lu", comm, &utime, &stime);
         fclose(stat_file);
-        return (unsigned long) utime + stime;
+        total_time = utime + stime;
+        return total_time;
     }
     return 0;
 }
 
-void drawCPUstat(char* comm, double cpu_usage, int R, int G, int B)
+
+bool present(long int PID, long int tab[40], int n)
 {
-    SDL_SetRenderDrawColor(renderer, 22, 22, 22, SDL_ALPHA_OPAQUE);
-    square.x = width;
-    square.y = height/2;
-    square.h = height/2;
-    square.w = width+600;
-    SDL_RenderFillRect(renderer, &square);
-    int i;
-    SDL_SetRenderDrawColor(renderer,R,G,B,SDL_ALPHA_OPAQUE);
-    drawCircle(width+300,height-height/4,100);
-    
-
-
-    
+    int i = 0, a = 0;
+    while (a==0 && i<n) {
+        if (tab[i]==PID) {
+            a++;
+        }
+        i++;
+    }
+    return a!=0;
 }
+
+int alreadyp()
+{
+    int i = 0, a = 0;
+    while (a == 0 && i<30) {
+        if (strcmp(comm,prog[i].id)==0) {
+            a++;
+        }
+        i++;
+    }
+    return i%30;
+}
+
 
 void getCPUstat()
 {
-    int i = 0; 
     unsigned long prev_total_time = 0;
+    int index = 0, ans;
     DIR* proc_dir = opendir("/proc");
     if (proc_dir == NULL) {
         perror("Erreur lors de l'ouverture du répertoire /proc");
     }
+
+
+
     struct dirent* entry;
-    unsigned long total_time_all_procs = 0;
-    while ((entry = readdir(proc_dir)) != NULL) {
-        if (entry->d_type == DT_DIR) {
-            char* endptr;
-            long pid = strtol(entry->d_name, &endptr, 10);
-            if (*endptr == '\0') {
-                unsigned long total_time = get_cpu_time(entry->d_name);
-                total_time_all_procs += total_time;
+    if (a%1 == 0) {
+        total_time_all_procs = 0;
+        while ((entry = readdir(proc_dir)) != NULL) {
+            if (entry->d_type == DT_DIR) {
+                pid = strtol(entry->d_name, &endptr, 10);                                                                  
+                if (*endptr == '\0') {
+                    total_time_all_procs += get_cpu_time(entry->d_name);
+                }
             }
         }
+        rewinddir(proc_dir);
+     
+    a = 0;
     }
-    rewinddir(proc_dir);
-    while ((entry = readdir(proc_dir)) != NULL) {
-            if (entry->d_type == DT_DIR) {
-                char* endptr;
-                long pid = strtol(entry->d_name, &endptr, 10);
-                if (*endptr == '\0') {
-                    unsigned long total_time = get_cpu_time(entry->d_name);
-                    unsigned long delta_time = total_time - prev_total_time;
-                    prev_total_time = total_time;
 
-                    // Calculer l'utilisation du CPU en pourcentage
-                    float cpu_usage = 0.0;
+
+    index = 0;
+    while ((entry = readdir(proc_dir)) != NULL) {
+        if (entry->d_type == DT_DIR) {
+            pid = strtol(entry->d_name, &endptr, 10);
+            if ( present(pid,tab,20)==1 || a == 0 ) { 
+                if (*endptr == '\0') {
+                    total_time = get_cpu_time(entry->d_name);
+                    delta_time = total_time - prev_total_time;
+                    prev_total_time = total_time;
+                    cpu_usage = 0.0;
+                    
                     if (total_time_all_procs > 0) {
                         cpu_usage = (delta_time * 100.0) / total_time_all_procs;
                     }
                     if (cpu_usage>0.1 && cpu_usage<=100) {
-                        drawCPUstat(comm,cpu_usage,color[i],color[i+1],color[i+2]);
-                        i +=3;
+                        ans = alreadyp();
+                        if (ans==0) {
+                            prog[index%20].PID = pid;
+                            strcpy(prog[index%20].id, comm); 
+                            prog[index%20].cpu_usage = cpu_usage;
+
+
+                            // strcpy(prog[index].color.name,Palette[index%7].name);
+                            // prog[index].color.R = Palette[index%7].R;
+                            // prog[index].color.G = Palette[index%7].G; 
+                            // prog[index].color.B = Palette[index%7].B;
+                            
+                        } else {
+                            prog[ans-1].cpu_usage += cpu_usage;
+                        }
+                        tab[index] = pid;
+                        index++;
                     }
                 }
+                
             }
         }
+    }
+    a++;
+    if (a%10>0 || a<2) {
+        drawcpudata();
+    }
+    for (int i = 0 ; i<20; i++) {
+        prog[i].cpu_usage = 0;
 
+    }
 
+    closedir(proc_dir);        
 }
 
 
