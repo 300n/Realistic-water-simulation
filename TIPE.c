@@ -25,58 +25,55 @@ double dt;
 
 
 
-double d0 = 1000;
-double h = 6;
+double h = 12;
 
-/*Coefficient de normalisation Cd pour le noyau de Wendland*/
-double Cd; /*Valeur de Cd pour un espace 2D (Pour un espace 3D Cd = 21/(6*pi*h*h*h)*/
 
-double m = 0.1;
+
+double m = 1000/(matlength*matwidth);
 
 double mu_eau = 0.0001;
 
 // ?
 double p0 = 0;
-double density0;
-double k = 0.01;
+double density0 = 0.001;
+double k = 1000;
 
 
 Uint32 last_time;
 Uint32 current_time;
+double fq;
+double fqq;
 
 
-
-
-
-double W(double q) {
-    return 7/(4*pi*h*h)* pow(1.0 - q, 4) * (4.0 * q + 1.0);
+double W(double q)
+{
+    return (15/(pi*pow(h,6)))*pow((h-q),3);
 }
+
+
+
+double Wvisco(double q)
+{
+    return (15/(2*pi*pow(h,3))) * (-(q*q*q/(2*pow(h,3))) + (q*q)/(pow(h,2)) + (h/(2*q)) - 1);
+}
+
 
 double calcul_pression(int i, int j)
 {
-    return k*(mat.data[i][j].density-density0);
+    return k * (mat.data[i][j].density - density0);
 }
 
 
 double Derive_partielle1ere_Q(double q, double h)
 {
-    double fq = W(q + h) - W(q - h);
+    fq = W(q + h) - W(q - h);
     return fq/(2*h);
 }
 
 double Derive_partielle2nd_Q(double q, double h) {
-    double fqq = W(q + h) - 2.0 * W(q) + W(q - h);
+    fqq = Wvisco(q + h) - 2.0 * Wvisco(q) + Wvisco(q - h);
     return fqq / (h * h);
 }   
-
-
-
-
-double Eularian_distance(int i, int j, int k, int n)
-{
-    return abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y);
-}
-
 
 void Calcul_density()
 {
@@ -96,6 +93,7 @@ void Calcul_density()
                     }
                 }
             }
+            // printf("mat.data[%d][%d].density = %lf\n", k, n, mat.data[k][n].density);
         }
     }
 }
@@ -113,16 +111,17 @@ void viscosity()
                     O++;
                     if (i!=k || j!=n) {
                         q = (abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y))/h;
-                        if (q<1) {
+                        if (q>0&&q<1) {
                             sigmaX += m*(abs(mat.data[i][j].vx-mat.data[k][n].vx))*Derive_partielle2nd_Q(q,h)/mat.data[i][j].density;
                             sigmaY += m*(abs(mat.data[i][j].vy-mat.data[k][n].vy))*Derive_partielle2nd_Q(q,h)/mat.data[i][j].density;
-
+                            // printf("Derive_partielle2nd_Q(%-2lf,%-2lf) = %lf\n", q, h, Derive_partielle2nd_Q(q,h));
                         }
                     }
                 }
             }
-            mat.data[k][n].vx += mu_eau*sigmaX;
-            mat.data[k][n].vy += mu_eau*sigmaY;
+            // printf("sigmaX = %lf, sigmaY = %lf\n", sigmaX, sigmaY);
+            mat.data[k][n].vx += mu_eau*sigmaX*dt;
+            mat.data[k][n].vy += mu_eau*sigmaY*dt;
         }
     }
 }
@@ -138,19 +137,25 @@ void pressure()
                     O++;
                     if (i!=k || j!=n) {
                         q = (abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y))/h;
-                        if (q<1) {
+                        if (q>0&&q<1) {
                             sigma += m*((calcul_pression(k,n)+calcul_pression(i,j))/(2*mat.data[i][j].density))*Derive_partielle1ere_Q(q,h); 
+                            printf("calcul_pression(k,n) = %lf, calcul_pression(i,j) = %lf\n", calcul_pression(k,n),calcul_pression(i,j));
                         }
                     }
                 }
             }
-            mat.data[k][n].vx -= sigma;
-            mat.data[k][n].vy -= sigma;
+            // printf("sigmaP = %lf\n", sigma);
+            
+            mat.data[k][n].vx -= sigma*dt;
+            mat.data[k][n].vy -= sigma*dt;
         }
      }
 }
 
-
+double Eularian_distance(int i, int j, int k, int n)
+{
+    return abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y);
+}
 
 void collision() {
     int temp1, temp2, x, y;
@@ -176,7 +181,10 @@ void collision() {
                                 }
                                 mat.data[k][n].vx = 0.9*((mat.data[i][j].vx+mat.data[k][n].vx)/2);
                                 mat.data[k][n].vy = 0.9*((mat.data[i][j].vy+mat.data[k][n].vy)/2);
-
+                                // mat.data[k][n].color[0] = 255;
+                                // mat.data[k][n].color[1] = 0;
+                                // mat.data[k][n].color[2] = 0;
+                    
                                 
                         }
                     }   
@@ -240,6 +248,7 @@ void update()
             mat.data[i][j].color[2] = 255;
         }
     }
+
     Calcul_density();
     collision(); 
     particle_out_of_the_grid();
@@ -250,8 +259,8 @@ void update()
     for (int i = 0 ; i < matlength ; i++) {
         for (int j = 0 ; j < matwidth ; j++) {
 
-            mat.data[i][j].vx += mat.data[i][j].ax*dt;
-            mat.data[i][j].vy += g*dt;
+            
+            mat.data[i][j].vy += m*g*dt;
             mat.data[i][j].x += mat.data[i][j].vx*dt*mat.data[i][j].xdirection;
             mat.data[i][j].y += mat.data[i][j].vy*dt*mat.data[i][j].ydirection;
             O++;
@@ -334,18 +343,18 @@ void aff()
                         goto restart;
                     }
                     if (Event.key.keysym.scancode == SDL_SCANCODE_RIGHT) {
-                        dt = 1/FPS*5;
+                        dt = 1/(FPS*10)*5;
                         for (int i = 0; i<10; i++) {
                             update();
                         }
-                        dt = 1/FPS;
+                        dt = 1/(FPS/10);
                     }
                     if (Event.key.keysym.scancode == SDL_SCANCODE_LEFT) {
-                        dt = -1/FPS*5;
+                        dt = -1/(FPS/10)*5;
                         for (int i = 0; i<10; i++) {
                             update();
                         }
-                        dt = 1/FPS;
+                        dt = 1/(FPS/10);
                     }
                 
                     break;
@@ -364,7 +373,7 @@ void aff()
             }
 
         }
-        dt = 1/FPS;
+        dt = 1/(FPS/10);
         update();
         end_time = SDL_GetTicks();
         elapsed_time = end_time - start_time;

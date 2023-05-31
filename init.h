@@ -15,7 +15,7 @@
 #define matlength 25
 #define width 1000
 #define height 1000
-#define pradius 3
+#define pradius 4
 SDL_Renderer* renderer;
 SDL_Window* window;
 TTF_Font* font;
