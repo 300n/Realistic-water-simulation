@@ -11,25 +11,7 @@
 
 
 
-// void Setup_Drawcolor(char* color) 
-// {
-//     if (strcmp(color,"White")==1 || strcmp(color,"white") == 1) {SDL_SetRenderDrawColor(renderer,255,255,255,SDL_ALPHA_OPAQUE);
-//     } else if (strcmp(color,"Red")==1 || strcmp(color,"red") == 1) {SDL_SetRenderDrawColor(renderer,255,0,0,SDL_ALPHA_OPAQUE);
-//     } else if (strcmp(color,"Green")==1 || strcmp(color,"green") == 1) {SDL_SetRenderDrawColor(renderer,0,255,0,SDL_ALPHA_OPAQUE);
-//     } else if (strcmp(color,"Blue")==1 || strcmp(color,"blue") == 1) {SDL_SetRenderDrawColor(renderer,0,0,255,SDL_ALPHA_OPAQUE);
-//     } else if (strcmp(color,"Yellow")==1 || strcmp(color,"yellow") == 1) {SDL_SetRenderDrawColor(renderer,255,255,0,SDL_ALPHA_OPAQUE);
-//     } else if (strcmp(color,"Orange")==1 || strcmp(color,"orange") == 1) {SDL_SetRenderDrawColor(renderer,255,128,0,SDL_ALPHA_OPAQUE);
-//     } else if (strcmp(color,"Cyan")==1 || strcmp(color,"cyan") == 1) {SDL_SetRenderDrawColor(renderer,0,255,255,SDL_ALPHA_OPAQUE);
-//     } else if (strcmp(color,"Pink")==1 || strcmp(color,"pink") == 1) {SDL_SetRenderDrawColor(renderer,255,0,255,SDL_ALPHA_OPAQUE);
-//     } else if (strcmp(color,"PRed")==1 || strcmp(color,"pred") == 1) {SDL_SetRenderDrawColor(renderer,255, 51,51,SDL_ALPHA_OPAQUE);
-//     } else if (strcmp(color,"POrange")==1 || strcmp(color,"porange") == 1) {SDL_SetRenderDrawColor(renderer,255,178,102,SDL_ALPHA_OPAQUE);
-//     } else if (strcmp(color,"PYellow")==1 || strcmp(color,"pyellow") == 1) {SDL_SetRenderDrawColor(renderer,255,255,102,SDL_ALPHA_OPAQUE);
-//     } else if (strcmp(color,"PGreen")==1 || strcmp(color,"pgreen") == 1) {SDL_SetRenderDrawColor(renderer,102,255,102,SDL_ALPHA_OPAQUE);
-//     } else if (strcmp(color,"PCyan")==1 || strcmp(color,"pcyan") == 1) {SDL_SetRenderDrawColor(renderer,102,255,255,SDL_ALPHA_OPAQUE);
-//     } else if (strcmp(color,"PBlue")==1 || strcmp(color,"pblue") == 1) {SDL_SetRenderDrawColor(renderer,102,102,255,SDL_ALPHA_OPAQUE);
-//     } else if (strcmp(color,"PPink")==1 || strcmp(color,"ppink") == 1) {SDL_SetRenderDrawColor(renderer,255,102,178,SDL_ALPHA_OPAQUE);
-//     }
-// }
+
 
 void draw_Cartesian_axes()
 {

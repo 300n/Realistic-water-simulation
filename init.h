@@ -30,7 +30,7 @@ char texte[100];
 clock_t starttime;
 int O = 0;
 char comm[256];
-
+int temperature = 20;
 
 typedef struct point {
     double density;
@@ -67,8 +67,6 @@ void initSDL()
 {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer(width+600, height, 0, &window, &renderer);
-    SDL_Surface* image = NULL;
-    SDL_Texture* texture = NULL; 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
 }
 
@@ -92,6 +90,7 @@ int initTTF()
         TTF_Quit();
         SDL_Quit();
     }
+    return 0;
 }
 
 void initmat()

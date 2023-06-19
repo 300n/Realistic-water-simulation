@@ -14,8 +14,6 @@
 
 
 
-#define Mparticle 20
-
 
 double FPS = 60;
 const double pi = 3.1415926535;
@@ -25,7 +23,7 @@ double dt;
 
 
 
-double h = 12;
+double h = 10;
 
 
 
@@ -34,7 +32,7 @@ double m = 1000/(matlength*matwidth);
 double mu_eau = 0.0001;
 
 // ?
-double p0 = 0;
+double p0 = 10;
 double density0 = 0.001;
 double k = 1000;
 
@@ -112,9 +110,10 @@ void viscosity()
                     if (i!=k || j!=n) {
                         q = (abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y))/h;
                         if (q>0&&q<1) {
-                            sigmaX += m*(abs(mat.data[i][j].vx-mat.data[k][n].vx))*Derive_partielle2nd_Q(q,h)/mat.data[i][j].density;
-                            sigmaY += m*(abs(mat.data[i][j].vy-mat.data[k][n].vy))*Derive_partielle2nd_Q(q,h)/mat.data[i][j].density;
+                            sigmaX += m*((abs(mat.data[i][j].vx-mat.data[k][n].vx))/mat.data[i][j].density)*(45/(pi*pow(h,6)))*(h-q);
+                            sigmaY += m*((abs(mat.data[i][j].vy-mat.data[k][n].vy))/mat.data[i][j].density)*(45/(pi*pow(h,6)))*(h-q);
                             // printf("Derive_partielle2nd_Q(%-2lf,%-2lf) = %lf\n", q, h, Derive_partielle2nd_Q(q,h));
+                            // printf("mat.data[%d][%d].density = %lf\n", i, j, mat.data[i][j].density);
                         }
                     }
                 }
@@ -139,7 +138,7 @@ void pressure()
                         q = (abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y))/h;
                         if (q>0&&q<1) {
                             sigma += m*((calcul_pression(k,n)+calcul_pression(i,j))/(2*mat.data[i][j].density))*Derive_partielle1ere_Q(q,h); 
-                            printf("calcul_pression(k,n) = %lf, calcul_pression(i,j) = %lf\n", calcul_pression(k,n),calcul_pression(i,j));
+                            // printf("calcul_pression(k,n) = %lf, calcul_pression(i,j) = %lf\n", calcul_pression(k,n),calcul_pression(i,j));
                         }
                     }
                 }
@@ -158,7 +157,7 @@ double Eularian_distance(int i, int j, int k, int n)
 }
 
 void collision() {
-    int temp1, temp2, x, y;
+    int x, y;
     for (int k = 0 ; k<matlength ; k++) {
         for (int n = 0 ; n<matwidth ; n++ ) {
             for (int i = 0; i<matlength; i++) {
@@ -194,13 +193,6 @@ void collision() {
     }
 }
 
-double calcule_viscosite_eau(int T)
-/*calcule de la viscosité de l'eau en fonction de la temperature*/
-{
-    double viscositer;
-    viscositer = pow(1.79*10,-3)*(1/1+0.03368*T+T*0.000211);
-
-}
 
 
 
@@ -212,17 +204,17 @@ void particle_out_of_the_grid()
             O+=4;           
             if (mat.data[i][j].x<(width/40)+pradius && mat.data[i][j].xdirection!= 1) {
                 mat.data[i][j].xdirection = 1;
-                mat.data[i][j].vx *= 0.9;
+                mat.data[i][j].vx *= 0.5;
             } else if (mat.data[i][j].x>width-(width/40)-pradius && mat.data[i][j].xdirection!= -1) {    
                 mat.data[i][j].xdirection = -1;
-                mat.data[i][j].vx *= 0.9;
+                mat.data[i][j].vx *= 0.5;
             }
             if (mat.data[i][j].y<(height/40)+pradius && mat.data[i][j].ydirection!= 1) {
                 mat.data[i][j].ydirection = 1;
-                mat.data[i][j].vy *= 0.9;
+                mat.data[i][j].vy *= 0.5;
             } else if (mat.data[i][j].y>height-(height/40)-pradius && mat.data[i][j].ydirection!= -1) {
                 mat.data[i][j].ydirection = -1;
-                mat.data[i][j].vy *= 0.9;
+                mat.data[i][j].vy *= 0.5;
             }
         }
     }
@@ -250,10 +242,10 @@ void update()
     }
 
     Calcul_density();
+    pressure();
+    viscosity();
     collision(); 
     particle_out_of_the_grid();
-    viscosity();
-    pressure();
 
 
     for (int i = 0 ; i < matlength ; i++) {
@@ -273,7 +265,7 @@ void update()
 void aff()
 /*affichage des particules*/
 {
-    int a, x, y, running = 1, paused;
+    int running = 1, paused;
     SDL_Event Event, Pause;
     initSDL();
     initTTF();

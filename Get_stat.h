@@ -43,14 +43,15 @@ char* complexity()
         return "O(n^2)";
     } else if (O>=pow(n,3)) {
         return "O(n^3)";
+    } else {
+        return "O(0)";
     }
+    
 }
 
 
 unsigned long get_cpu_time(const char* pid) 
 {
-
-    char line[256];
     snprintf(stat_file_path, sizeof(stat_file_path), "/proc/%s/stat", pid);
     FILE* stat_file = fopen(stat_file_path, "r");
     if (stat_file != NULL) {
@@ -208,6 +209,13 @@ void stat_aff(int fps)
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+    // sprintf(texte, "Temperature : %d°C", temperature);
+    // surface_texte = TTF_RenderText_Blended(font, texte, white);
+    // texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+    // rect_texte.y += 30;
+    // rect_texte.w = surface_texte->w;
+    // rect_texte.h = surface_texte->h;
+    // SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
     O = 0;
     if (i%30 == 0) {
         getCPUstat();
