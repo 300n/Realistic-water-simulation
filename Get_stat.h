@@ -169,11 +169,11 @@ void getCPUstat()
 
 
 
-void stat_aff(int fps)
+void stat_aff(int fps)    
 /*affichage des statistiques*/ 
 {
     static int i = 0;
-    sprintf(texte, "fps : %d", fps);
+    sprintf(texte, "FPS : %d", fps);
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.x = width+30;
@@ -181,21 +181,21 @@ void stat_aff(int fps)
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    sprintf(texte, "nombre d'operations par frame : %d", O);
+    sprintf(texte, "Nombre d'operations par frame : %d", O);
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.y += 30;
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    sprintf(texte, "temps ecoule : %-2f s", get_time());
+    sprintf(texte, "Temps ecoule : %-2f s", get_time());
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.y += 30;
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    sprintf(texte, "nombre de particule dans le cadre : %d", get_number_of_particle());
+    sprintf(texte, "Nombre de particule dans le cadre : %d", get_number_of_particle());
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.y += 30;
@@ -217,7 +217,7 @@ void stat_aff(int fps)
     // rect_texte.h = surface_texte->h;
     // SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
     O = 0;
-    if (i%30 == 0) {
+    if (i%1 == 0) {
         getCPUstat();
         i++;
     } else {
