@@ -11,11 +11,13 @@
 #include <dirent.h> 
 
 
-#define matwidth 25 
+#define matwidth 25
 #define matlength 25
 #define width 1000
 #define height 1000
-#define pradius 4
+#define widthstats 525
+#define widthscale 295
+#define pradius 5
 SDL_Renderer* renderer;
 SDL_Window* window;
 TTF_Font* font;
@@ -31,6 +33,35 @@ clock_t starttime;
 int O = 0;
 char comm[256];
 int temperature = 20;
+int numof_particle_added = 0;
+
+double const FPSconst = 60; // nombre d'image par seconde 
+double FPS = FPSconst;
+int xFPS = width+widthstats/30*2+widthstats/4;
+int yFPS = height/4+height/20;
+
+double const hconst = 14; // rayon kernel
+double h = hconst;
+int xh = width+widthstats/30*2+widthstats/4;
+int yh = height/4+height/20+(height/4-height/10)/5;
+
+double const mconst = 1; // masse de chaque particule
+double m = mconst;
+int xm = width+widthstats/30*2;
+int ym = height/4+height/20+((height/4-height/10)/5)*2;
+
+double const viscoconst = 0.001; // coefficient de viscosité
+double coeff_visco = viscoconst;
+int x_coeff_visco = width+widthstats/30*2;
+int y_coeff_visco = height/4+height/20+((height/4-height/10)/5)*3;
+
+
+double const kconst = 10000; // isotropic exponent
+double k = kconst; 
+int xk = width+widthstats/30*2+widthstats/4;
+int yk = height/4+height/20+((height/4-height/10)/5)*4;
+
+
 
 typedef struct point {
     double density;
@@ -66,7 +97,7 @@ void initSDL()
 /*initialise SDL*/
 {
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_CreateWindowAndRenderer(width+600, height, 0, &window, &renderer);
+    SDL_CreateWindowAndRenderer(width+widthscale+widthstats, height, 0, &window, &renderer);
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
 }
 
@@ -103,23 +134,13 @@ void initmat()
         mat.data[i] = (Point*)malloc(sizeof(Point)*matwidth);
     }
 
-    grid = (Case**)malloc(sizeof(Case*)*subdiv);
-    for (int i = 0; i < subdiv; i++) {
-        grid[i] = (Case*)malloc(sizeof(Case)*subdiv);
-    }
-
-    for (int i = 0; i<subdiv; i++) {
-        for (int j = 0; j<subdiv; j++) {
-            grid[i][j].casee = (int*)malloc(sizeof(int)*(matwidth*matlength)*2); 
-            grid[i][j].currentpos = 0;
-        }
-    }
-
 
     for (int i = 0; i<matlength; i++) {
         for (int j = 0; j<matwidth; j++) {
+             
             mat.data[i][j].x = (width-matlength*2*1.5*pradius)/2+i*pradius*2*1.5;
             mat.data[i][j].y = (height-matwidth*2*1.5*pradius)/2+j*pradius*2*1.5; 
+            
             mat.data[i][j].xdirection = 1;
             mat.data[i][j].ydirection = 1;
 
@@ -132,10 +153,6 @@ void initmat()
             mat.data[i][j].color[0] = 0;
             mat.data[i][j].color[1] = 0;
             mat.data[i][j].color[2] = 255;
-
-            grid[(int)mat.data[i][j].y/(subdiv*2)][(int)mat.data[i][j].x/(subdiv*2)].casee[grid[(int)mat.data[i][j].y/(subdiv*2)][(int)mat.data[i][j].x/(subdiv*2)].currentpos] = i;
-            grid[(int)mat.data[i][j].y/(subdiv*2)][(int)mat.data[i][j].x/(subdiv*2)].casee[grid[(int)mat.data[i][j].y/(subdiv*2)][(int)mat.data[i][j].x/(subdiv*2)].currentpos+1] = j;
-            grid[(int)mat.data[i][j].y/(subdiv*2)][(int)mat.data[i][j].x/(subdiv*2)].currentpos += 2;
 
         }
     }
@@ -211,3 +228,19 @@ unsigned long total_time;
 unsigned long delta_time;
 float cpu_usage;
 float cpu_tot;
+
+
+void reset_const()
+{
+    k = kconst;
+    h = hconst;
+    m = mconst;
+    FPS = FPSconst;
+    coeff_visco = viscoconst;
+
+    xk = width+widthstats/30*2+widthstats/4;
+    xh = width+widthstats/30*2+widthstats/4;
+    xm = width+widthstats/30*2;
+    xFPS = width+widthstats/30*2+widthstats/4;
+    x_coeff_visco = width+widthstats/30*2;
+}
