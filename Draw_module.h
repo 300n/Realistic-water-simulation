@@ -60,7 +60,7 @@ void draw_grid()
         SDL_RenderDrawLine(renderer,(height/40),(width/40)+(((width-(width/20))/number_of_drawn_lines)*i),height-(height/40),(width/40)+(((width-(width/20))/number_of_drawn_lines)*i));
     }
 
-
+    SDL_SetRenderDrawColor(renderer,RGB_lines,RGB_lines,RGB_lines,SDL_ALPHA_TRANSPARENT);
     draw_rect((width/40),(height/40),width-(width/40)*2,height-(height/40)*2);
     draw_Cartesian_axes();
 
@@ -87,9 +87,9 @@ void clear_grid()
     SDL_SetRenderDrawColor(renderer,RGB_background,RGB_background,RGB_background,SDL_ALPHA_OPAQUE);
     for (int i = 0; i<matlength; i++) {
         for (int j = 0; j<matwidth; j++) {
-            SDL_RenderDrawPoint(renderer,mat.data[i][j].x,mat.data[i][j].y);
+            SDL_RenderDrawPoint(renderer, particle_grid.data[i][j].position.x,particle_grid.data[i][j].position.y);
         }
-    }
+    } 
     square.x = 0;
     square.y = 0;
     square.h = height;
