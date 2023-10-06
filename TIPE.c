@@ -27,7 +27,78 @@ Uint32 current_time;
 double fq;
 double fqq;
 
+#define SMOOTHING_LENGTH 10
+#define NORMALIZATION_DENSITY (315 * m / (64 * pi * pow(SMOOTHING_LENGTH, 9)))
+#define NORMALIZATION_PRESSURE_FORCE (-45 * m / (pi * pow(SMOOTHING_LENGTH, 6)))
+#define NORMALIZATION_VISCOUS_FORCE (45 * coeff_visco * m / (pi * pow(SMOOTHING_LENGTH, 6)))
 
+
+#define CONSTANT_FORCE_X 0.0
+#define CONSTANT_FORCE_Y 10  
+
+#define DAMPING_COEFFICIENT -0.8
+#define COLLISION_COEFFICIENT 0.8
+
+
+void particleonttop()
+{
+    int maxheight, temp = 0;
+    for (int k = 0; k< (numofseparation); k++) {
+        maxheight = height;
+        for (int i = 0; i<matlength; i++) {
+            for (int j = 0; j<matwidth; j++) {
+                if(particle_grid.data[i][j].position.x>=(numofseparation)*k && particle_grid.data[i][j].position.x<=(numofseparation)*(k+1) && particle_grid.data[i][j].position.y<maxheight) {
+                    maxheight = particle_grid.data[i][j].position.y;
+                    particle_grid.particle_on_top[temp] = i*matlength+j;
+                }   
+            }
+        }
+        temp++;
+    }
+}
+
+void align()
+{
+    int x1, y1, x2, y2;
+    SDL_SetRenderDrawColor(renderer,0,0,RGB_txt,SDL_ALPHA_OPAQUE);
+    for (int k = 0; k< (numofseparation); k++) {
+        O++;
+        x1 = particle_grid.particle_on_top[k]/matwidth;
+        x2 = particle_grid.particle_on_top[k+1]/matwidth;
+        y1 = particle_grid.particle_on_top[k]%matlength;
+        y2 = particle_grid.particle_on_top[k+1]%matlength;
+        if (particle_grid.particle_on_top[k]>0 && particle_grid.data[x1][y1].position.x<particle_grid.data[x2][y2].position.x) {
+            SDL_RenderDrawLine(renderer,particle_grid.data[x1][y1].position.x,particle_grid.data[x1][y1].position.y,particle_grid.data[x2][y2].position.x,particle_grid.data[x2][y2].position.y);
+        }
+    }
+}
+
+
+void particle_near()
+{
+    int q, l = 0;
+    for (int k = 0; k<matlength; k++) {
+        for (int n = 0; n<matwidth; n++) {
+            l = 0;
+            for (int i = 0; i<matlength; i++) {
+                for (int j = 0; j<matwidth; j++) {
+                    O++;
+                    if (i!=k || j!=n) {                    
+                        q = (fabs(particle_grid.data[k][n].position.x-particle_grid.data[i][j].position.x)+fabs(particle_grid.data[k][n].position.y-particle_grid.data[i][j].position.y))/h;
+                        if (q>0&&q<1) {
+                            particle_grid.data[k][n].part_near[l] = i*matlength+j;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+double Eularian_distance(int i, int j, int k, int n)
+{
+    return fabs(particle_grid.data[k][n].position.x-particle_grid.data[i][j].position.x)+fabs(particle_grid.data[k][n].position.y-particle_grid.data[i][j].position.y);
+}
 
 double Wpike(double q)
 {
@@ -44,7 +115,7 @@ double Wvisco(double q)
 
 double calcul_pression(int i, int j)
 {
-    return k * (mat.data[i][j].density - coeff_visco);
+    return k * (particle_grid.data[i][j].density - coeff_visco);
 }
 
 
@@ -62,54 +133,47 @@ double Derive_partielle2nd_Q(double q, double h) {
 void Calcul_density()
 {
     double q, sigma;
-    for (int k = 0; k<matlength+numof_particle_added; k++) {
-        for (int n = 0; n<matlength+numof_particle_added; n++) {
-            mat.data[k][n].density = 0;
+    for (int k = 0; k<matlength; k++) {
+        for (int n = 0; n<matlength; n++) {
+            particle_grid.data[k][n].density = 0;
             sigma = 0;
-            for (int i = 0; i<matlength+numof_particle_added; i++) {
-                for (int j = 0; j<matwidth+numof_particle_added; j++) {
+            for (int i = 0; i<matlength; i++) {
+                for (int j = 0; j<matwidth; j++) {
                     O++;
                     if (i!=k || j!=n) {
-                        q = (abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y))/h;
-                        if (q<1) {
+                        q = Eularian_distance(k,n,i,j)/h;
+                        if (q>0&&q<1) {
                             sigma += pow((h*h-q*q),3);
                         }
                     }
                 }
             }
-            mat.data[k][n].density = ((315*m) / (64*pi*pow(h,9))) * sigma;
-            // printf("mat.data[%d][%d].density = %lf\n", k, n, mat.data[k][n].density);
+            particle_grid.data[k][n].density = ((315*m) / (64*pi*pow(h,9))) * sigma;
         }
     }
 }
 
-
 void viscosity()
 {
     double sigmaX, sigmaY, q;
-    for (int k = 0; k<matlength+numof_particle_added; k++) {
-        for (int n = 0; n<matwidth+numof_particle_added; n++) {
+    for (int k = 0; k<matlength; k++) {
+        for (int n = 0; n<matwidth; n++) {
             sigmaX = 0;
             sigmaY= 0;
-            for (int i = 0; i<matlength+numof_particle_added; i++) {
-                for (int j = 0; j<matwidth+numof_particle_added; j++) {
+            for (int i = 0; i<matlength; i++) {
+                for (int j = 0; j<matwidth; j++) {
                     O++;
                     if (i!=k || j!=n) {
-                        q = (abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y))/h;
+                        q = Eularian_distance(k,n,i,j)/h;
                         if (q>0&&q<1) {
-                            sigmaX += m*((abs(mat.data[i][j].vx-mat.data[k][n].vx))/mat.data[i][j].density)*(45/(pi*pow(h,6)))*(h-q);
-                            sigmaY += m*((abs(mat.data[i][j].vy-mat.data[k][n].vy))/mat.data[i][j].density)*(45/(pi*pow(h,6)))*(h-q);   
-
-
-                            // printf("Derive_partielle2nd_Q(%-2lf,%-2lf) = %lf\n", q, h, Derive_partielle2nd_Q(q,h));
-                            // printf("mat.data[%d][%d].density = %lf\n", i, j, mat.data[i][j].density);
+                            sigmaX += m*((fabs(particle_grid.data[i][j].velocity.x-particle_grid.data[k][n].velocity.x))/particle_grid.data[i][j].density)*(45/(pi*pow(h,6)))*(h-q);
+                            sigmaY += m*((fabs(particle_grid.data[i][j].velocity.y-particle_grid.data[k][n].velocity.y))/particle_grid.data[i][j].density)*(45/(pi*pow(h,6)))*(h-q);   
                         }
                     }
                 }
             }   
-            // printf("sigmaX = %lf, sigmaY = %lf\n", sigmaX, sigmaY);
-            mat.data[k][n].vx += mu_eau*sigmaX;
-            mat.data[k][n].vy += mu_eau*sigmaY;
+            particle_grid.data[k][n].velocity.x += mu_eau*sigmaX;
+            particle_grid.data[k][n].velocity.y += mu_eau*sigmaY;
         }
     }
 }
@@ -117,66 +181,71 @@ void viscosity()
 void pressure()
 {
     double sigma, q;
-     for (int k = 0; k<matlength+numof_particle_added; k++) {
-        for (int n = 0; n<matwidth+numof_particle_added; n++) {
+     for (int k = 0; k<matlength; k++) {
+        for (int n = 0; n<matwidth; n++) {
             sigma = 0;
-            for (int i = 0; i<matlength+numof_particle_added; i++) {
-                for (int j = 0; j<matwidth+numof_particle_added; j++) {
+            for (int i = 0; i<matlength; i++) {
+                for (int j = 0; j<matwidth; j++) {
                     O++;
                     if (i!=k || j!=n) {
-                        q = (abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y))/h;
+                        q = Eularian_distance(k,n,i,j)/h;
                         if (q>0&&q<1) {
-                            sigma += m*((calcul_pression(k,n)+calcul_pression(i,j))/(2*mat.data[i][j].density))*Derive_partielle1ere_Q(q,h); 
-                            // printf("calcul_pression(k,n) = %lf, calcul_pression(i,j) = %lf\n", calcul_pression(k,n),calcul_pression(i,j));
+                            sigma += m*((calcul_pression(k,n)+calcul_pression(i,j))/(2*particle_grid.data[i][j].density))*Derive_partielle1ere_Q(q,h); 
                         }
                     }
                 }
             }
-            // printf("sigmaP = %lf\n", sigma);
-            
-            mat.data[k][n].vx -= sigma*dt;
-            mat.data[k][n].vy -= sigma*dt;
-            // mat.data[k][n].color[0] = (sigma*10)/255;
-            // mat.data[k][n].color[1] = (sigma*20)/255;
-            // mat.data[k][n].color[2] = (sigma*30)/255;
+            particle_grid.data[k][n].velocity.x -= sigma*dt;
+            particle_grid.data[k][n].velocity.y -= sigma*dt;
         }
-     }
+    }
 }
 
-double Eularian_distance(int i, int j, int k, int n)
+
+
+void collision() 
 {
-    return abs(mat.data[k][n].x-mat.data[i][j].x)+abs(mat.data[k][n].y-mat.data[i][j].y);
-}
-
-void collision() {
     int x, y;
-    for (int k = 0 ; k<matlength+numof_particle_added ; k++) {
-        for (int n = 0 ; n<matwidth+numof_particle_added ; n++ ) {
-            for (int i = 0; i<matlength+numof_particle_added; i++) {
-                for (int j = 0; j<matwidth+numof_particle_added; j++) {
-                    O++;
-                    if (i!=k || j!=n) {
-                        
-                        if (Eularian_distance(k,n,i,j) < pradius*2) {
-                                x = mat.data[k][n].x - mat.data[i][j].x;
-                                y = mat.data[k][n].y - mat.data[i][j].y;
-                                if (x<0) {
-                                    mat.data[k][n].xdirection = -1;
-                                } else if (x>0) {
-                                    mat.data[k][n].xdirection = 1;
+    for (int k = 0 ; k<matlength ; k++) {
+        for (int n = 0 ; n<matwidth ; n++ ) {
+            for (int i = 0; i<matlength; i++) {
+                for (int j = 0; j<matwidth; j++) {
+                    if (i!=k || j!=n ) {
+                        if (Eularian_distance(k,n,i,j) < pradius*2+pradius/10) { // Regarde si la distance entre les deux particules est inférieur à 2x le rayon d'une particule "Détection de collision"
+                            x = particle_grid.data[k][n].position.x - particle_grid.data[i][j].position.x; // Phase pour déterminer la direction de la particule après la collision 
+                            y = particle_grid.data[k][n].position.y - particle_grid.data[i][j].position.y;
+                            if (x < 0) {
+                                if (particle_grid.data[k][n].velocity.x >= 0) {
+                                    particle_grid.data[k][n].velocity.x *=-1;
+
                                 }
-                                if (y<0) {
-                                    mat.data[k][n].ydirection = -1;
-                                } else if (y>0) {
-                                    mat.data[k][n].ydirection = 1;
+                                // particle_grid.data[k][n].direction.x = -1;
+                            } else if (x > 0) {
+                                if (particle_grid.data[k][n].velocity.x < 0) {
+                                    particle_grid.data[k][n].velocity.x *=-1;
+
                                 }
-                                mat.data[k][n].vx = 0.9*((mat.data[i][j].vx+mat.data[k][n].vx)/2);
-                                mat.data[k][n].vy = 0.9*((mat.data[i][j].vy+mat.data[k][n].vy)/2);
-                                mat.data[k][n].color[0] = (i*1)%255;
-                                mat.data[k][n].color[1] = (k*20)%255;
-                                mat.data[k][n].color[2] = (j*30)%255;
-                    
-                                
+                                // particle_grid.data[k][n].direction.x = 1;
+                            }
+                            if (y < 0) {
+                                if (particle_grid.data[k][n].velocity.y >= 0) {
+                                    particle_grid.data[k][n].velocity.y *=-1;
+
+                                }
+                                // particle_grid.data[k][n].direction.y = -1;
+                            } else if (y > 0) { 
+                                if (particle_grid.data[k][n].velocity.y < 0) {
+                                    particle_grid.data[k][n].velocity.y *=-1;
+                                }
+                                // particle_grid.data[k][n].direction.y = 1;
+                            }
+                            particle_grid.data[i][j].force.y = 0.9*((particle_grid.data[i][j].force.y+particle_grid.data[k][n].force.y)/2);
+                            particle_grid.data[i][j].force.x = 0.9*((particle_grid.data[i][j].force.x+particle_grid.data[k][n].force.x)/2);
+                            particle_grid.data[i][j].velocity.y = COLLISION_COEFFICIENT*((particle_grid.data[i][j].velocity.y+particle_grid.data[k][n].velocity.y)/2);
+                            particle_grid.data[i][j].velocity.x = COLLISION_COEFFICIENT*((particle_grid.data[i][j].velocity.x+particle_grid.data[k][n].velocity.x)/2);  // Mise à jour de la vistesse de la particule 
+                            particle_grid.data[i][j].color[0] = ((i*20)/2)%255;
+                            particle_grid.data[i][j].color[1] = ((k*1)/2)%255;
+                            particle_grid.data[i][j].color[2] = ((j*20)/2)%255;
                         }
                     }   
                 }   
@@ -191,26 +260,61 @@ void collision() {
 void particle_out_of_the_grid()
 /*Détecte une sortie de l'écran*/
 {
-    for (int i = 0; i<matlength+numof_particle_added; i++) { 
-        for (int j = 0; j<matwidth+numof_particle_added; j++) {
+    for (int i = 0; i<matlength; i++) { 
+        for (int j = 0; j<matwidth; j++) {
             O+=4;           
-            if (mat.data[i][j].x<(width/40)+pradius && mat.data[i][j].xdirection!= 1) {
-                mat.data[i][j].xdirection = 1;
-                mat.data[i][j].vx *= 0.5;
-            } else if (mat.data[i][j].x>width-(width/40)-pradius && mat.data[i][j].xdirection!= -1) {    
-                mat.data[i][j].xdirection = -1;
-                mat.data[i][j].vx *= 0.5;
+            if (particle_grid.data[i][j].position.x<x_left+pradius) {
+                particle_grid.data[i][j].position.x = x_left+pradius;
+                particle_grid.data[i][j].velocity.x *= DAMPING_COEFFICIENT;
+            } else if (particle_grid.data[i][j].position.x>x_right-pradius) {    
+                particle_grid.data[i][j].position.x = x_right-pradius;
+                particle_grid.data[i][j].velocity.x *= DAMPING_COEFFICIENT;
             }
-            if (mat.data[i][j].y<(height/40)+pradius && mat.data[i][j].ydirection!= 1) {
-                mat.data[i][j].ydirection = 1;
-                mat.data[i][j].vy *= 0.5;
-            } else if (mat.data[i][j].y>height-(height/40)-pradius && mat.data[i][j].ydirection!= -1) {
-                mat.data[i][j].ydirection = -1;
-                mat.data[i][j].vy *= 0.5;
+            if (particle_grid.data[i][j].position.y<y_up+pradius) {
+                particle_grid.data[i][j].position.y = y_up+pradius;
+                particle_grid.data[i][j].velocity.y *= DAMPING_COEFFICIENT;
+            } else if (particle_grid.data[i][j].position.y>y_down-pradius) {
+                particle_grid.data[i][j].position.y = y_down-pradius;
+                particle_grid.data[i][j].velocity.y *= DAMPING_COEFFICIENT;
             }
         }
     }
+}
 
+
+void sumforce()
+{
+    double q = 0, w_density = 0, w_pressure = 0, w_viscosity = 0, pressure_term = 0;
+    for (int i = 0; i<matlength; i++) {
+        for (int j = 0; j<matwidth; j++) {
+            particle_grid.data[i][j].density = 0;
+            particle_grid.data[i][j].force.x = 0;
+            particle_grid.data[i][j].force.y = 0;
+            for (int k = 0; k<matlength; k++) {
+                for (int n = 0; n<matwidth; n++) {
+                    O++;
+                    if (i!=k || j!=n) {
+                        q = Eularian_distance(k,n,i,j)/h;
+                        if (q<1) {
+                            double dx = particle_grid.data[i][j].position.x - particle_grid.data[k][n].position.x;
+                            double dy = particle_grid.data[i][j].position.y - particle_grid.data[k][n].position.y;
+                            w_density = (NORMALIZATION_DENSITY * pow(q,3)) * (315.0 / 64.0);
+                            w_pressure = (NORMALIZATION_PRESSURE_FORCE * (-1.0 / q) * pow(q,2)) * (-45.0 / pi);
+                            printf("q = %d\n", q);
+                            w_viscosity = (NORMALIZATION_VISCOUS_FORCE * q) * (45.0 / pi);
+                            particle_grid.data[i][j].density += w_density;
+                            particle_grid.data[i][j].pressure += w_pressure;
+                            pressure_term = (particle_grid.data[i][j].pressure+particle_grid.data[k][n].pressure) / (2.0*particle_grid.data[k][n].density);
+                            particle_grid.data[i][j].force.x = (w_pressure + w_viscosity) * dx /*/ q - pressure_term * dx*/;
+                            particle_grid.data[i][j].force.y = (w_pressure + w_viscosity) * dy /*/ q - pressure_term * dy*/;
+                        }
+                    }
+                }
+            }
+            particle_grid.data[i][j].force.x += CONSTANT_FORCE_X;
+            particle_grid.data[i][j].force.y += CONSTANT_FORCE_Y;
+        }
+    }
 }
 
 void update()   
@@ -222,40 +326,60 @@ void update()
     draw_grid();
 
     draw_scale();
-
     SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
 
-    for (int i = 0 ; i<matlength+numof_particle_added ; i++ ){
-        for (int j = 0 ; j<matwidth+numof_particle_added ; j++ ) {
-            if (mat.data[i][j].ydirection == -1) {
-                mat.data[i][j].ydirection = 1;
-            }
-            mat.data[i][j].color[0] = 0;
-            mat.data[i][j].color[1] = 0;
-            mat.data[i][j].color[2] = 255;
-        }
-    }
+    // for (int i = 0 ; i<matlength ; i++ ){
+    //     for (int j = 0 ; j<matwidth ; j++ ) {
+    //         if (particle_grid.data[i][j].direction.y == -1) {
+    //             particle_grid.data[i][j].direction.y = 1;
+    //         }
+    //         particle_grid.data[i][j].color[0] = 0;
+    //         particle_grid.data[i][j].color[1] = 0;
+    //         particle_grid.data[i][j].color[2] = 255;
+    //     }
+    // }
 
-    Calcul_density();
-    pressure();
-    viscosity();
+    // if (particle_visible == -1) {
+    //     particleonttop();
+    //     align();
+    // }
+    
+    
+
+    // particle_near();
+    // Calcul_density();
+    // pressure();
+    // viscosity();
+    sumforce();
     collision(); 
     particle_out_of_the_grid();
 
 
     for (int i = 0 ; i < matlength ; i++) {
         for (int j = 0 ; j < matwidth ; j++) {
-
             
-            mat.data[i][j].vy += m*g*dt;
-            mat.data[i][j].x += mat.data[i][j].vx*dt*mat.data[i][j].xdirection;
-            mat.data[i][j].y += mat.data[i][j].vy*dt*mat.data[i][j].ydirection;
+            particle_grid.data[i][j].velocity.x += (dt*particle_grid.data[i][j].force.x);
+            particle_grid.data[i][j].velocity.y += (dt*particle_grid.data[i][j].force.y);
+            particle_grid.data[i][j].position.x += particle_grid.data[i][j].velocity.x*dt;
+            particle_grid.data[i][j].position.y += particle_grid.data[i][j].velocity.y*dt;
             O++;
-            SDL_SetRenderDrawColor(renderer, mat.data[i][j].color[0], mat.data[i][j].color[1], mat.data[i][j].color[2], SDL_ALPHA_OPAQUE);
-            drawCircle(mat.data[i][j].x,mat.data[i][j].y,pradius);
+            SDL_SetRenderDrawColor(renderer, particle_grid.data[i][j].color[0], particle_grid.data[i][j].color[1], particle_grid.data[i][j].color[2], SDL_ALPHA_OPAQUE);
+
+            drawCircle(particle_grid.data[i][j].position.x,particle_grid.data[i][j].position.y,pradius);
+            
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
 
 void aff()
 /*affichage des particules*/
@@ -324,6 +448,9 @@ void aff()
                                     if (Pause.key.keysym.scancode == SDL_SCANCODE_R) {
                                         reset_const();
                                     }
+                                    if (Pause.key.keysym.scancode == SDL_SCANCODE_S) {
+                                        particle_visible*=-1;
+                                    }
                                 } else if (Pause.type == SDL_QUIT) {
                                     paused = 0;
                                     running = 0;
@@ -356,7 +483,9 @@ void aff()
                     if (Event.key.keysym.scancode == SDL_SCANCODE_R) {
                         reset_const();
                     }
-                
+                    if (Event.key.keysym.scancode == SDL_SCANCODE_S) {
+                        particle_visible*=-1;
+                    }
                     break;
                 case SDL_WINDOWEVENT_SIZE_CHANGED:
                     switch (Event.window.event) {
@@ -374,7 +503,6 @@ void aff()
                     SDL_GetMouseState(&mousex,&mousey);
                     if (mousex > 0 && mousex < height && mousey > 0 && mousey < width) {
                         // addparticle(mousex,mousey);
-                        printf("Done\n");
                     }
                     if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40 && mousey<(height/4+height/20+height/400)+height/100) {
                         FPS = 120*(mousex-width-width/30)/(width/6);
@@ -386,7 +514,7 @@ void aff()
                         m = 10*(mousex-width-width/30)/(width/6)+1;
                         xm = mousex;
                     } else if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40+((height/4-height/10)/5)*3 && mousey<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*1.5) {
-                        coeff_visco = 0.01*(mousex-width-width/30)/(width/6);
+                        coeff_visco = 1000*(mousex-width-width/30)/(width/6);
                         x_coeff_visco = mousex;
                     }else if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40+((height/4-height/10)/5)*4 && mousey<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*2.5) {
                         k = 50000*(mousex-width-width/30)/(width/6);
@@ -401,11 +529,11 @@ void aff()
         dt = 10/FPS;
         update();
         end_time = SDL_GetTicks();
-
+        fflush(stdout);
 
         elapsed_time = end_time - start_time;
         
-        stat_aff(elapsed_time);
+        stat_aff(1000/elapsed_time);
         SDL_RenderPresent(renderer);
         SDL_UpdateWindowSurface(window);
     }
