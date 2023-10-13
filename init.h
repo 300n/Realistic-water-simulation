@@ -12,18 +12,22 @@
 #include <dirent.h> 
 
 
-#define matwidth 35
-#define matlength 35
+#define matwidth 25
+#define matlength 25
 #define width 1000
 #define height 1000
 #define widthstats 525
 #define widthscale 295
 #define pradius 5
 
-#define x_right width-width/40
-#define x_left width/40
-#define y_up height/40
-#define y_down height-height/40
+#define x_right width
+#define x_left 0
+#define y_up 0
+#define y_down height
+
+#define DAMPING_COEFFICIENT 0.9
+
+
 
 
 
@@ -49,24 +53,24 @@ double FPS = FPSconst;
 int xFPS = width+widthstats/30*2+widthstats/4;
 int yFPS = height/4+height/20;
 
-double const hconst = 14; // rayon kernel
-double h = hconst;
+double const h = 100; // rayon kernel
+double smoothing_radius = h;
 int xh = width+widthstats/30*2+widthstats/4;
 int yh = height/4+height/20+(height/4-height/10)/5;
 
-double const mconst = 0.0001; // masse de chaque particule
+double const mconst = 1; // masse de chaque particule
 double m = mconst;
 int xm = width+widthstats/30*2;
 int ym = height/4+height/20+((height/4-height/10)/5)*2;
 
-double const viscoconst = 0.001; // coefficient de viscosité
-double coeff_visco = viscoconst;
+double const t_dens =  (double) (matwidth * matlength) / (width * height) ; 
+double target_density = t_dens;
 int x_coeff_visco = width+widthstats/30*2;
 int y_coeff_visco = height/4+height/20+((height/4-height/10)/5)*3;
 
 
-double const kconst = 30000; // isotropic exponent
-double k = kconst; 
+double const k = 1000; 
+double pressure_multiplier = k; 
 int xk = width+widthstats/30*2+widthstats/4;
 int yk = height/4+height/20+((height/4-height/10)/5)*4;
 
@@ -74,6 +78,8 @@ int const numofseparation = (width)/matwidth;
 int particle_visible = 1;
 int z = 0;
 
+const double pi = 3.1415926535;
+const double g = 9.80665;
 
 typedef struct {
     double x,y;
@@ -82,14 +88,11 @@ typedef struct {
 typedef struct {
     double density;
     Vect2D position;
+    Vect2D predicted_position;
     Vect2D velocity;
-    Vect2D acceleration;
-    Vect2D direction;
     Vect2D force;
     double pressure;
-    bool collision_status;
     int* color;
-    int* part_near;
 }Particule;
 
 typedef struct matrice {
@@ -114,7 +117,7 @@ void initSDL()
 /*initialise SDL*/
 {
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_CreateWindowAndRenderer(width+widthscale+widthstats, height, 0, &window, &renderer);
+    SDL_CreateWindowAndRenderer(width+widthstats+widthscale, height, 0, &window, &renderer);
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
 }
 
@@ -146,38 +149,29 @@ void initmat()
 {
     particle_grid.MATlength = matlength;
     particle_grid.MATwidth = matwidth;
-    particle_grid.data = (Particule**)malloc(sizeof(Particule*)*matlength);
-    for (int i = 0; i < matlength; i++) {
-        particle_grid.data[i] = (Particule*)malloc(sizeof(Particule)*matwidth);
-    }
-    for (int i = 0; i<matlength; i++) {
-        for (int j = 0; j<matwidth; j++) {
-            particle_grid.data[i][j].part_near = (int*)calloc(0,sizeof(int)*(matlength*matwidth-1));
-        }
+    particle_grid.data = (Particule**)malloc(sizeof(Particule*)*particle_grid.MATlength);
+    for (int i = 0; i < particle_grid.MATlength; i++) {
+        particle_grid.data[i] = (Particule*)malloc(sizeof(Particule)*particle_grid.MATwidth);
     }
 
     particle_grid.particle_on_top = (int*)calloc(0,sizeof(int)*numofseparation);
+    srand(time(0));             
+    for (int i = 0; i<particle_grid.MATlength; i++) {
+        for (int j = 0; j<particle_grid.MATwidth; j++) {
+            particle_grid.data[i][j].position.x = (rand() %(x_right-x_left))+x_left;;
+            particle_grid.data[i][j].position.y = (rand() %(y_down-y_up))+y_up;; 
+            // particle_grid.data[i][j].position.x = (width-matlength*2*1.5*pradius)/2+i*pradius*2*1.5;
+            // particle_grid.data[i][j].position.y = (height-matwidth*2*1.5*pradius)/2+j*pradius*2*1.5;
 
-    for (int i = 0; i<matlength; i++) {
-        for (int j = 0; j<matwidth; j++) {
-             
-            particle_grid.data[i][j].position.x = (width-matlength*2*1.5*pradius)/2+i*pradius*2*1.5;
-            particle_grid.data[i][j].position.y = (height-matwidth*2*1.5*pradius)/2+j*pradius*2*1.5; 
-            
-            particle_grid.data[i][j].direction.x = 1;
-            particle_grid.data[i][j].direction.y = 1;
 
             particle_grid.data[i][j].velocity.x = 0;
             particle_grid.data[i][j].velocity.y = 0;
-            particle_grid.data[i][j].acceleration.x = 0;
-            particle_grid.data[i][j].acceleration.y = 0;
 
             particle_grid.data[i][j].color = (int*)malloc(sizeof(int)*3);
             particle_grid.data[i][j].color[0] = 0;
             particle_grid.data[i][j].color[1] = 0;
             particle_grid.data[i][j].color[2] = 255;
-            // particle_grid.data[i][j].force.x = i/5;
-            // particle_grid.data[i][j].force.y = j/5;
+            particle_grid.data[i][j].force.y = 3;
 
         }
     }
@@ -257,11 +251,11 @@ float cpu_tot;
 
 void reset_const()
 {
-    k = kconst;
-    h = hconst;
+    pressure_multiplier = k;
+    smoothing_radius = h;
     m = mconst;
     FPS = FPSconst;
-    coeff_visco = viscoconst;
+    target_density = t_dens;
 
     xk = width+widthstats/30*2+widthstats/4;
     xh = width+widthstats/30*2+widthstats/4;
