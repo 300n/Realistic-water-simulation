@@ -56,12 +56,12 @@ void draw_grid()
     int number_of_drawn_lines = 20;
     SDL_SetRenderDrawColor(renderer,RGB_lines,RGB_lines,RGB_lines,SDL_ALPHA_TRANSPARENT);
     for (int i = 1; i<number_of_drawn_lines ;i++) {
-        SDL_RenderDrawLine(renderer,(height/40)+(((height-(height/20))/number_of_drawn_lines)*i),(width/40),((height/40)+(((height-(height/20))/number_of_drawn_lines)*i)),width-(width/40));
-        SDL_RenderDrawLine(renderer,(height/40),(width/40)+(((width-(width/20))/number_of_drawn_lines)*i),height-(height/40),(width/40)+(((width-(width/20))/number_of_drawn_lines)*i));
+        SDL_RenderDrawLine(renderer,y_up+((y_down)/number_of_drawn_lines)*i,x_left,((y_up)+(((y_down)/number_of_drawn_lines)*i)),x_right);
+        SDL_RenderDrawLine(renderer,y_up,x_left+((x_right)/number_of_drawn_lines)*i,y_down,x_left+(((x_right)/number_of_drawn_lines)*i));
     }
 
     SDL_SetRenderDrawColor(renderer,RGB_lines,RGB_lines,RGB_lines,SDL_ALPHA_TRANSPARENT);
-    draw_rect((width/40),(height/40),width-(width/40)*2,height-(height/40)*2);
+    draw_rect(x_left,y_up,x_right-1,y_down-1);
     draw_Cartesian_axes();
 
 }
@@ -74,6 +74,15 @@ void drawCircle(int X, int Y, int radius)
                 SDL_RenderDrawPoint(renderer, x, y);
             }
         }
+    }
+}
+
+void dessinerCercle(int x, int y, int rayon) {
+    for (int i = 0; i < 360; i++) {
+        double angle = i * pi / 180;
+        int xPoint = x + (int)(rayon * cos(angle));
+        int yPoint = y + (int)(rayon * sin(angle));
+        SDL_RenderDrawPoint(renderer, xPoint, yPoint);
     }
 }
 
@@ -223,7 +232,7 @@ void draw_scale()
     SDL_RenderFillRect(renderer,&bar);
 
     rect_texte.y += (height/4-height/10)/5;
-    sprintf(texte, "h = %.0lf", h);
+    sprintf(texte, "h = %.0lf", smoothing_radius);
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.w = surface_texte->w;
@@ -248,7 +257,7 @@ void draw_scale()
     bar.y += (height/4-height/10)/5;
     SDL_RenderFillRect(renderer,&bar);
     rect_texte.y += (height/4-height/10)/5;
-    sprintf(texte, "visco = %.3lf", coeff_visco);
+    sprintf(texte, "t_dens = %.6lf", target_density);
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.w = surface_texte->w;
@@ -261,7 +270,7 @@ void draw_scale()
     bar.y += (height/4-height/10)/5;
     SDL_RenderFillRect(renderer,&bar);
     rect_texte.y += (height/4-height/10)/5;
-    sprintf(texte, "k = %.0lf", k);
+    sprintf(texte, "p = %.0lf", pressure_multiplier);
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.w = surface_texte->w;
