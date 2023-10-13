@@ -17,8 +17,8 @@
 int get_number_of_particle()
 {
     int out = 0;
-    for (int i = 0; i<matlength; i++) {
-        for (int j = 0; j<matwidth; j++ ) {
+    for (int i = 0; i<particle_grid.MATlength; i++) {
+        for (int j = 0; j<particle_grid.MATwidth; j++ ) {
             if (particle_grid.data[i][j].position.x>=(width/30)-10 && particle_grid.data[i][j].position.x<=width-(width/30)+10 && particle_grid.data[i][j].position.y>=(height/30)-10 && particle_grid.data[i][j].position.y<=height-(height/30)+10) {
                 out++;
             }
@@ -36,7 +36,7 @@ double get_time()
 
 char* complexity()
 {
-    double n = matwidth*matlength;
+    double n = particle_grid.MATlength*particle_grid.MATwidth;
     if (O>=n && O<pow(n,2)) {
         return "O(n)";
     } else if (O>=pow(n,2) && O<pow(n,3)) {
@@ -209,13 +209,6 @@ void stat_aff(int fps)
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    // sprintf(texte, "Temperature : %d°C", temperature);
-    // surface_texte = TTF_RenderText_Blended(font, texte, white);
-    // texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    // rect_texte.y += 30;
-    // rect_texte.w = surface_texte->w;
-    // rect_texte.h = surface_texte->h;
-    // SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
     O = 0;
     if (i%1 == 0) {
         getCPUstat();
@@ -223,4 +216,5 @@ void stat_aff(int fps)
     } else {
         i++;
     }
+    
 } 
