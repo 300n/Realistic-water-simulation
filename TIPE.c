@@ -9,12 +9,12 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <dirent.h> 
+#include <stdint.h>
+#include <limits.h>
 
 #include "Get_stat.h"
  
 
-const double pi = 3.1415926535;
-const double g = 9.80665;
 char texte[100];
 double dt;
 
@@ -27,241 +27,228 @@ Uint32 current_time;
 double fq;
 double fqq;
 
-#define SMOOTHING_LENGTH 10
-#define NORMALIZATION_DENSITY (315 * m / (64 * pi * pow(SMOOTHING_LENGTH, 9)))
-#define NORMALIZATION_PRESSURE_FORCE (-45 * m / (pi * pow(SMOOTHING_LENGTH, 6)))
-#define NORMALIZATION_VISCOUS_FORCE (45 * coeff_visco * m / (pi * pow(SMOOTHING_LENGTH, 6)))
 
 
-#define CONSTANT_FORCE_X 0.0
-#define CONSTANT_FORCE_Y 10  
-
-#define DAMPING_COEFFICIENT -0.8
-#define COLLISION_COEFFICIENT 0.8
 
 
-void particleonttop()
-{
-    int maxheight, temp = 0;
-    for (int k = 0; k< (numofseparation); k++) {
-        maxheight = height;
-        for (int i = 0; i<matlength; i++) {
-            for (int j = 0; j<matwidth; j++) {
-                if(particle_grid.data[i][j].position.x>=(numofseparation)*k && particle_grid.data[i][j].position.x<=(numofseparation)*(k+1) && particle_grid.data[i][j].position.y<maxheight) {
-                    maxheight = particle_grid.data[i][j].position.y;
-                    particle_grid.particle_on_top[temp] = i*matlength+j;
-                }   
-            }
-        }
-        temp++;
-    }
-}
 
-void align()
-{
-    int x1, y1, x2, y2;
-    SDL_SetRenderDrawColor(renderer,0,0,RGB_txt,SDL_ALPHA_OPAQUE);
-    for (int k = 0; k< (numofseparation); k++) {
-        O++;
-        x1 = particle_grid.particle_on_top[k]/matwidth;
-        x2 = particle_grid.particle_on_top[k+1]/matwidth;
-        y1 = particle_grid.particle_on_top[k]%matlength;
-        y2 = particle_grid.particle_on_top[k+1]%matlength;
-        if (particle_grid.particle_on_top[k]>0 && particle_grid.data[x1][y1].position.x<particle_grid.data[x2][y2].position.x) {
-            SDL_RenderDrawLine(renderer,particle_grid.data[x1][y1].position.x,particle_grid.data[x1][y1].position.y,particle_grid.data[x2][y2].position.x,particle_grid.data[x2][y2].position.y);
-        }
-    }
-}
-
-
-void particle_near()
-{
-    int q, l = 0;
-    for (int k = 0; k<matlength; k++) {
-        for (int n = 0; n<matwidth; n++) {
-            l = 0;
-            for (int i = 0; i<matlength; i++) {
-                for (int j = 0; j<matwidth; j++) {
-                    O++;
-                    if (i!=k || j!=n) {                    
-                        q = (fabs(particle_grid.data[k][n].position.x-particle_grid.data[i][j].position.x)+fabs(particle_grid.data[k][n].position.y-particle_grid.data[i][j].position.y))/h;
-                        if (q>0&&q<1) {
-                            particle_grid.data[k][n].part_near[l] = i*matlength+j;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 double Eularian_distance(int i, int j, int k, int n)
 {
-    return fabs(particle_grid.data[k][n].position.x-particle_grid.data[i][j].position.x)+fabs(particle_grid.data[k][n].position.y-particle_grid.data[i][j].position.y);
-}
-
-double Wpike(double q)
-{
-    return (15/(pi*pow(h,6)))*pow((h-q),3);
+    return sqrt(pow((particle_grid.data[k][n].position.x - particle_grid.data[i][j].position.x),2) + pow((particle_grid.data[k][n].position.y - particle_grid.data[i][j].position.y),2));
 }
 
 
-
-double Wvisco(double q)
+double max(double x, double y)
 {
-    return (15/(2*pi*pow(h,3))) * (-(q*q*q/(2*pow(h,3))) + (q*q)/(pow(h,2)) + (h/(2*q)) - 1);
+	if (x >= y) {
+		return x;
+	} else {
+		return y;
+	}
 }
 
-
-double calcul_pression(int i, int j)
-{
-    return k * (particle_grid.data[i][j].density - coeff_visco);
+Vect2D Position_to_Cell(Vect2D point)
+{   
+    Vect2D out;
+    out.x = point.x / smoothing_radius;
+    out.y = point.y / smoothing_radius;
+    return out;
 }
 
-
-double Derive_partielle1ere_Q(double q, double h)
+u_int64_t HashCell(int cellX, int cellY)
 {
-    fq = Wpike(q + h) - Wpike(q - h);
-    return fq/(2*h);
+    u_int64_t a = (u_int64_t)cellX * 15823;
+    u_int64_t b = (u_int64_t)cellY * 9737333;
+    return a + b;
 }
 
-double Derive_partielle2nd_Q(double q, double h) {
-    fqq = Wvisco(q + h) - 2.0 * Wvisco(q) + Wvisco(q - h);
-    return fqq / (h * h);
-}   
+// u_int64_t Get_Key_from_Hash(u_int64_t hash)
+// {
+//     return hash % (int64_t)Spatial_lookup.length;
+// }
 
-void Calcul_density()
+
+double Smoothing_Kernel(double radius, double dst)
 {
-    double q, sigma;
-    for (int k = 0; k<matlength; k++) {
-        for (int n = 0; n<matlength; n++) {
-            particle_grid.data[k][n].density = 0;
-            sigma = 0;
-            for (int i = 0; i<matlength; i++) {
-                for (int j = 0; j<matwidth; j++) {
-                    O++;
-                    if (i!=k || j!=n) {
-                        q = Eularian_distance(k,n,i,j)/h;
-                        if (q>0&&q<1) {
-                            sigma += pow((h*h-q*q),3);
-                        }
+    if (dst>=radius) {
+        return 0;
+    } else {
+	    double volume = pi * pow(radius, 4) / 6;
+	    return (radius - dst) * (radius - dst) / volume;
+    }
+}
+
+double Smoothing_Kernel_Derivative(double radius, double dst)
+{
+	if (dst>=radius) {
+		return 0;
+	} else {
+		double scale = 12 / (pi * pow(radius, 4));
+		return (dst - radius) * scale;
+	}
+}
+
+double Calculate_Density(int k, int n)
+{
+	double density = 0, q;
+	for (int i = 0; i<particle_grid.MATlength; i++) {
+		for (int j = 0; j<particle_grid.MATwidth; j++) {
+			q = Eularian_distance(k, n, i, j);
+			if (q/smoothing_radius<1) {
+				double influence = Smoothing_Kernel(smoothing_radius, q);
+				density += m*influence;
+			}
+		}
+	}
+	return density;
+}
+
+void update_densities()
+{
+	for (int i = 0; i<particle_grid.MATlength; i++) {
+		for (int j = 0; j<particle_grid.MATwidth; j++) {
+			particle_grid.data[i][j].density = Calculate_Density(i,j);
+		}
+	}
+}
+
+double Convert_Density_To_Pressure(double density)
+{
+	double density_error = 	density - target_density;
+	double pressure = density_error * pressure_multiplier;
+	return pressure;
+}
+
+double Calculate_Shared_Pressure(double densityA, double densityB)
+{
+	double pressureA = Convert_Density_To_Pressure(densityA);
+	double pressureB = Convert_Density_To_Pressure(densityB);
+	return (pressureA + pressureB) / 2;
+}
+
+Vect2D Calculate_Pressure_Force(int k, int n)
+{	
+	double q;
+	Vect2D property_pressure_force;
+    property_pressure_force.x = 0;
+    property_pressure_force.y = 0;
+	for (int i = 0; i<particle_grid.MATlength; i++) {
+		for (int j = 0; j<particle_grid.MATwidth; j++) {
+			if (k != i || n != j) {
+				q = Eularian_distance(k, n, i ,j);
+				if (q/smoothing_radius<1) {
+					Vect2D dir; 
+                    if (q!=0){
+					    dir.x = (particle_grid.data[i][j].position.x - particle_grid.data[k][n].position.x) / q; 
+					    dir.y = (particle_grid.data[i][j].position.y - particle_grid.data[k][n].position.y) / q;
+                        // printf("dir.x = %lf && dir.y = %lf \n", dir.x, dir.y);
                     }
-                }
-            }
-            particle_grid.data[k][n].density = ((315*m) / (64*pi*pow(h,9))) * sigma;
-        }
-    }
-}
-
-void viscosity()
-{
-    double sigmaX, sigmaY, q;
-    for (int k = 0; k<matlength; k++) {
-        for (int n = 0; n<matwidth; n++) {
-            sigmaX = 0;
-            sigmaY= 0;
-            for (int i = 0; i<matlength; i++) {
-                for (int j = 0; j<matwidth; j++) {
-                    O++;
-                    if (i!=k || j!=n) {
-                        q = Eularian_distance(k,n,i,j)/h;
-                        if (q>0&&q<1) {
-                            sigmaX += m*((fabs(particle_grid.data[i][j].velocity.x-particle_grid.data[k][n].velocity.x))/particle_grid.data[i][j].density)*(45/(pi*pow(h,6)))*(h-q);
-                            sigmaY += m*((fabs(particle_grid.data[i][j].velocity.y-particle_grid.data[k][n].velocity.y))/particle_grid.data[i][j].density)*(45/(pi*pow(h,6)))*(h-q);   
-                        }
+					double slope = Smoothing_Kernel_Derivative(smoothing_radius,q);
+                    // printf("slope = %lf\n", slope);
+					double density = particle_grid.data[i][j].density;
+					double shared_pressure = Calculate_Shared_Pressure(density,particle_grid.data[i][j].density);
+                    if (density!=0) {
+					    property_pressure_force.x += shared_pressure * dir.x * slope * m / density ;
+					    property_pressure_force.y += shared_pressure * dir.y * slope * m / density ;
                     }
-                }
-            }   
-            particle_grid.data[k][n].velocity.x += mu_eau*sigmaX;
-            particle_grid.data[k][n].velocity.y += mu_eau*sigmaY;
-        }
-    }
+				}
+			}
+		}
+	}
+    // printf("property_pressure_force.x = %lf && property_pressure_force.y = %lf\n", property_pressure_force.x, property_pressure_force.y);
+	return property_pressure_force;
+
 }
 
-void pressure()
+
+
+
+
+
+void Examine_Density(int x, int y)
 {
-    double sigma, q;
-     for (int k = 0; k<matlength; k++) {
-        for (int n = 0; n<matwidth; n++) {
-            sigma = 0;
-            for (int i = 0; i<matlength; i++) {
-                for (int j = 0; j<matwidth; j++) {
-                    O++;
-                    if (i!=k || j!=n) {
-                        q = Eularian_distance(k,n,i,j)/h;
-                        if (q>0&&q<1) {
-                            sigma += m*((calcul_pression(k,n)+calcul_pression(i,j))/(2*particle_grid.data[i][j].density))*Derive_partielle1ere_Q(q,h); 
-                        }
-                    }
-                }
+    SDL_SetRenderDrawColor(renderer,255,255,255,SDL_ALPHA_OPAQUE);
+    for (int i = 0; i < 5; i++) {
+        dessinerCercle(x,y,smoothing_radius-i);
+    }
+
+    double density = 0, q;
+	for (int i = 0; i<particle_grid.MATlength; i++) {
+		for (int j = 0; j<particle_grid.MATwidth; j++) {
+            particle_grid.data[i][j].color[0] = 0;
+            q = sqrt(pow((particle_grid.data[i][j].position.x-x),2) + pow((particle_grid.data[i][j].position.y - y),2)) ;
+			if (q/smoothing_radius<=1) {
+                particle_grid.data[i][j].color[0] = 255;
+				double influence = Smoothing_Kernel(smoothing_radius, q);
+				density += m*influence;
+			}
+		}
+	}
+    sprintf(texte, "Density : %lf", density);
+    surface_texte = TTF_RenderText_Blended(font, texte, white);
+    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+    rect_texte.w = surface_texte->w;
+    rect_texte.h = surface_texte->h;
+    rect_texte.x = x - rect_texte.w/2;
+    if (y + smoothing_radius > height*0.9 ) {
+        rect_texte.y = y - smoothing_radius*1.2;
+    } else {
+        rect_texte.y = y + smoothing_radius;
+    }
+    for (int i = 0 ; i < particle_grid.MATlength ; i++) {
+        for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
+            SDL_SetRenderDrawColor(renderer, particle_grid.data[i][j].color[0], particle_grid.data[i][j].color[1], particle_grid.data[i][j].color[2], SDL_ALPHA_OPAQUE);
+            if (particle_visible == 1) {
+                drawCircle(particle_grid.data[i][j].position.x,particle_grid.data[i][j].position.y,pradius);
             }
-            particle_grid.data[k][n].velocity.x -= sigma*dt;
-            particle_grid.data[k][n].velocity.y -= sigma*dt;
+            particle_grid.data[i][j].color[0] = 0;
         }
     }
+
+    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+    SDL_RenderPresent(renderer);
 }
 
-
-
-void collision() 
+void Visualize_Density()
 {
-    int x, y;
-    for (int k = 0 ; k<matlength ; k++) {
-        for (int n = 0 ; n<matwidth ; n++ ) {
-            for (int i = 0; i<matlength; i++) {
-                for (int j = 0; j<matwidth; j++) {
-                    if (i!=k || j!=n ) {
-                        if (Eularian_distance(k,n,i,j) < pradius*2+pradius/10) { // Regarde si la distance entre les deux particules est inférieur à 2x le rayon d'une particule "Détection de collision"
-                            x = particle_grid.data[k][n].position.x - particle_grid.data[i][j].position.x; // Phase pour déterminer la direction de la particule après la collision 
-                            y = particle_grid.data[k][n].position.y - particle_grid.data[i][j].position.y;
-                            if (x < 0) {
-                                if (particle_grid.data[k][n].velocity.x >= 0) {
-                                    particle_grid.data[k][n].velocity.x *=-1;
-
-                                }
-                                // particle_grid.data[k][n].direction.x = -1;
-                            } else if (x > 0) {
-                                if (particle_grid.data[k][n].velocity.x < 0) {
-                                    particle_grid.data[k][n].velocity.x *=-1;
-
-                                }
-                                // particle_grid.data[k][n].direction.x = 1;
-                            }
-                            if (y < 0) {
-                                if (particle_grid.data[k][n].velocity.y >= 0) {
-                                    particle_grid.data[k][n].velocity.y *=-1;
-
-                                }
-                                // particle_grid.data[k][n].direction.y = -1;
-                            } else if (y > 0) { 
-                                if (particle_grid.data[k][n].velocity.y < 0) {
-                                    particle_grid.data[k][n].velocity.y *=-1;
-                                }
-                                // particle_grid.data[k][n].direction.y = 1;
-                            }
-                            particle_grid.data[i][j].force.y = 0.9*((particle_grid.data[i][j].force.y+particle_grid.data[k][n].force.y)/2);
-                            particle_grid.data[i][j].force.x = 0.9*((particle_grid.data[i][j].force.x+particle_grid.data[k][n].force.x)/2);
-                            particle_grid.data[i][j].velocity.y = COLLISION_COEFFICIENT*((particle_grid.data[i][j].velocity.y+particle_grid.data[k][n].velocity.y)/2);
-                            particle_grid.data[i][j].velocity.x = COLLISION_COEFFICIENT*((particle_grid.data[i][j].velocity.x+particle_grid.data[k][n].velocity.x)/2);  // Mise à jour de la vistesse de la particule 
-                            particle_grid.data[i][j].color[0] = ((i*20)/2)%255;
-                            particle_grid.data[i][j].color[1] = ((k*1)/2)%255;
-                            particle_grid.data[i][j].color[2] = ((j*20)/2)%255;
-                        }
-                    }   
-                }   
+    double density,q,delta;
+    for (int w = 0; w<width; w+=10) {
+        for (int h = 0; h<height; h+=10) {
+            density = 0;
+            for (int i = 0; i<particle_grid.MATlength; i++) {
+		        for (int j = 0; j<particle_grid.MATwidth; j++) {
+                    q = sqrt(pow((particle_grid.data[i][j].position.x-w),2) + pow((particle_grid.data[i][j].position.y - h),2)) ;
+			            if (q/smoothing_radius<=1) {
+				            double influence = Smoothing_Kernel(smoothing_radius, q);
+				            density += m*influence;
+			            }
+		            }
             }
+            delta = ((density-target_density));
+            if (delta>0) {
+                delta = fmod(delta*400000,255);
+                SDL_SetRenderDrawColor(renderer,delta,delta/4,0,0.1);
+            } else if (fabs(delta) < 0.00005) {
+                delta = fmod(delta*1000000,255);
+                SDL_SetRenderDrawColor(renderer,255,255,255,0.1);
+            } else {
+                delta = fmod(delta*2000000,255);
+                SDL_SetRenderDrawColor(renderer,0,0,delta,0.1);
+            }
+            drawCircle(w,h,5);
+
+
         }
     }
+    SDL_RenderPresent(renderer);
 }
-
-
-
 
 void particle_out_of_the_grid()
 /*Détecte une sortie de l'écran*/
 {
-    for (int i = 0; i<matlength; i++) { 
-        for (int j = 0; j<matwidth; j++) {
+    for (int i = 0; i<particle_grid.MATlength; i++) { 
+        for (int j = 0; j<particle_grid.MATwidth; j++) {
             O+=4;           
             if (particle_grid.data[i][j].position.x<x_left+pradius) {
                 particle_grid.data[i][j].position.x = x_left+pradius;
@@ -281,92 +268,89 @@ void particle_out_of_the_grid()
     }
 }
 
-
-void sumforce()
-{
-    double q = 0, w_density = 0, w_pressure = 0, w_viscosity = 0, pressure_term = 0;
-    for (int i = 0; i<matlength; i++) {
-        for (int j = 0; j<matwidth; j++) {
-            particle_grid.data[i][j].density = 0;
-            particle_grid.data[i][j].force.x = 0;
-            particle_grid.data[i][j].force.y = 0;
-            for (int k = 0; k<matlength; k++) {
-                for (int n = 0; n<matwidth; n++) {
-                    O++;
-                    if (i!=k || j!=n) {
-                        q = Eularian_distance(k,n,i,j)/h;
-                        if (q<1) {
-                            double dx = particle_grid.data[i][j].position.x - particle_grid.data[k][n].position.x;
-                            double dy = particle_grid.data[i][j].position.y - particle_grid.data[k][n].position.y;
-                            w_density = (NORMALIZATION_DENSITY * pow(q,3)) * (315.0 / 64.0);
-                            w_pressure = (NORMALIZATION_PRESSURE_FORCE * (-1.0 / q) * pow(q,2)) * (-45.0 / pi);
-                            printf("q = %d\n", q);
-                            w_viscosity = (NORMALIZATION_VISCOUS_FORCE * q) * (45.0 / pi);
-                            particle_grid.data[i][j].density += w_density;
-                            particle_grid.data[i][j].pressure += w_pressure;
-                            pressure_term = (particle_grid.data[i][j].pressure+particle_grid.data[k][n].pressure) / (2.0*particle_grid.data[k][n].density);
-                            particle_grid.data[i][j].force.x = (w_pressure + w_viscosity) * dx /*/ q - pressure_term * dx*/;
-                            particle_grid.data[i][j].force.y = (w_pressure + w_viscosity) * dy /*/ q - pressure_term * dy*/;
-                        }
-                    }
-                }
-            }
-            particle_grid.data[i][j].force.x += CONSTANT_FORCE_X;
-            particle_grid.data[i][j].force.y += CONSTANT_FORCE_Y;
-        }
-    }
-}
+float threshold;
 
 void update()   
 /*mise à jour des positions de chaque particule*/
 {
+    // Clear grid and draw initial grid
     clear_grid();
-    
     drawstatgrid();
     draw_grid();
-
     draw_scale();
+
+    // Set render color to blue
     SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
 
-    // for (int i = 0 ; i<matlength ; i++ ){
-    //     for (int j = 0 ; j<matwidth ; j++ ) {
-    //         if (particle_grid.data[i][j].direction.y == -1) {
-    //             particle_grid.data[i][j].direction.y = 1;
+
+	for (int i = 0 ; i < particle_grid.MATlength ; i++) {
+        for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
+			// particle_grid.data[i][j].velocity.y += g*dt;
+            // particle_grid.data[i][j].predicted_position.x = particle_grid.data[i][j].velocity.x*dt;
+            // particle_grid.data[i][j].predicted_position.y = particle_grid.data[i][j].velocity.x*dt;
+		}
+	}
+
+    for (int i = 0 ; i < particle_grid.MATlength ; i++) {
+        for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
+            particle_grid.data[i][j].density = Calculate_Density(i,j);
+        }
+    }
+
+    // Update particle velocities
+    for (int i = 0 ; i < particle_grid.MATlength ; i++) {
+        for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
+            // Calculate pressure force
+    		Vect2D pressure_force = Calculate_Pressure_Force(i,j);
+
+            // Calculate pressure acceleration
+    		Vect2D pressure_acceleration;
+    		pressure_acceleration.x = pressure_force.x / particle_grid.data[i][j].density;
+    		pressure_acceleration.y = pressure_force.y / particle_grid.data[i][j].density;
+
+            // Update particle velocity
+    		particle_grid.data[i][j].velocity.x += pressure_acceleration.x * dt;
+    		particle_grid.data[i][j].velocity.y += pressure_acceleration.y * dt; 
+    	}
+    }   
+
+    // Update particle positions
+	for (int i = 0 ; i < particle_grid.MATlength ; i++) {
+        for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
+            // Update particle position
+			particle_grid.data[i][j].position.x += particle_grid.data[i][j].velocity.x*dt;
+            particle_grid.data[i][j].position.y += particle_grid.data[i][j].velocity.y*dt;
+		}
+	}
+
+    particle_out_of_the_grid();
+    // int max = INT_MIN;
+
+    // for (int i = 0; i < particle_grid.MATlength; i++) {
+    //     for (int j = 0; j < particle_grid.MATwidth; j++) {
+    //         if (particle_grid.data[i][j].velocity.x + particle_grid.data[i][j].velocity.y > max) {
+    //             max = particle_grid.data[i][j].velocity.x + particle_grid.data[i][j].velocity.y;
     //         }
-    //         particle_grid.data[i][j].color[0] = 0;
-    //         particle_grid.data[i][j].color[1] = 0;
-    //         particle_grid.data[i][j].color[2] = 255;
+
     //     }
     // }
 
-    // if (particle_visible == -1) {
-    //     particleonttop();
-    //     align();
+    // for (int i = 0; i < particle_grid.MATlength; i++) {
+    //     for (int j = 0; j < particle_grid.MATwidth; j++) {
+    //         threshold = (particle_grid.data[i][j].velocity.x + particle_grid.data[i][j].velocity.y)/max;
+    //         particle_grid.data[i][j].color[0] = (int)255 * threshold;
+    //         particle_grid.data[i][j].color[1] = 0;
+    //         particle_grid.data[i][j].color[2] = (int)255 * (1.0f - threshold);
+    //     }
     // }
     
-    
 
-    // particle_near();
-    // Calcul_density();
-    // pressure();
-    // viscosity();
-    sumforce();
-    collision(); 
-    particle_out_of_the_grid();
-
-
-    for (int i = 0 ; i < matlength ; i++) {
-        for (int j = 0 ; j < matwidth ; j++) {
-            
-            particle_grid.data[i][j].velocity.x += (dt*particle_grid.data[i][j].force.x);
-            particle_grid.data[i][j].velocity.y += (dt*particle_grid.data[i][j].force.y);
-            particle_grid.data[i][j].position.x += particle_grid.data[i][j].velocity.x*dt;
-            particle_grid.data[i][j].position.y += particle_grid.data[i][j].velocity.y*dt;
-            O++;
+    for (int i = 0 ; i < particle_grid.MATlength ; i++) {
+        for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
             SDL_SetRenderDrawColor(renderer, particle_grid.data[i][j].color[0], particle_grid.data[i][j].color[1], particle_grid.data[i][j].color[2], SDL_ALPHA_OPAQUE);
-
-            drawCircle(particle_grid.data[i][j].position.x,particle_grid.data[i][j].position.y,pradius);
-            
+            if (particle_visible == 1) {
+                drawCircle(particle_grid.data[i][j].position.x,particle_grid.data[i][j].position.y,pradius);
+            }
         }
     }
 }
@@ -388,7 +372,7 @@ void aff()
     SDL_Event Event, Pause;
     initSDL();
     initTTF();
-    Uint32 start_time, end_time, elapsed_time = 1, pausedtime;
+    Uint32 start_time, end_time, elapsed_time = FPS, pausedtime;
     restart:
     initmat();
     init_prog();
@@ -501,39 +485,56 @@ void aff()
                 case SDL_MOUSEBUTTONDOWN:
 
                     SDL_GetMouseState(&mousex,&mousey);
-                    if (mousex > 0 && mousex < height && mousey > 0 && mousey < width) {
-                        // addparticle(mousex,mousey);
+                    if (Event.button.button == SDL_BUTTON_LEFT) {
+                        if (mousex > 0 && mousex < width && mousey > 0 && mousey < height) {
+                                SDL_GetMouseState(&mousex, &mousey);
+                                Examine_Density(mousex,mousey);
+                            while (Event.type != SDL_MOUSEBUTTONUP) {
+                                SDL_PollEvent(&Event);
+                            }
+                        }
+                        if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40 && mousey<(height/4+height/20+height/400)+height/100) {
+                            FPS = 120*(mousex-width-width/30)/(width/6);
+                            xFPS = mousex;
+                        } else if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40+(height/4-height/10)/5 && mousey<(height/4+height/20+height/400)+height/100+(height/4-height/10)/5) {
+                            smoothing_radius = 120*(mousex-width-width/30)/(width/6);
+                            xh = mousex;
+                        } else if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40+((height/4-height/10)/5)*2 && mousey<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)) {
+                            m = 10*(mousex-width-width/30)/(width/6)+1;
+                            xm = mousex;
+                        } else if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40+((height/4-height/10)/5)*3 && mousey<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*1.5) {
+                            target_density = 0.001*(mousex-width-width/30)/(width/6);
+                            x_coeff_visco = mousex;
+                        }else if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40+((height/4-height/10)/5)*4 && mousey<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*2.5) {
+                            pressure_multiplier = 5000*(mousex-width-width/30)/(width/6);
+                            xk = mousex;
+                        }/* else if (mousex>x_left && mousex<x_right && mousey> y_up && mousey<y_down) {
+                             SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+                             drawCircle(mousex,mousey,20);
+                             SDL_RenderPresent(renderer);
+                        }*/
+                    } else if (Event.button.button == SDL_BUTTON_RIGHT) {
+                        if (mousex > 0 && mousex < width+500 && mousey > 0 && mousey < height) {
+                                SDL_GetMouseState(&mousex, &mousey);
+                                Visualize_Density();
+                            while (Event.type != SDL_MOUSEBUTTONUP) {
+                                SDL_PollEvent(&Event);
+                            }
+                        }
                     }
-                    if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40 && mousey<(height/4+height/20+height/400)+height/100) {
-                        FPS = 120*(mousex-width-width/30)/(width/6);
-                        xFPS = mousex;
-                    } else if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40+(height/4-height/10)/5 && mousey<(height/4+height/20+height/400)+height/100+(height/4-height/10)/5) {
-                        h = 20*(mousex-width-width/30)/(width/6);
-                        xh = mousex;
-                    } else if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40+((height/4-height/10)/5)*2 && mousey<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)) {
-                        m = 10*(mousex-width-width/30)/(width/6)+1;
-                        xm = mousex;
-                    } else if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40+((height/4-height/10)/5)*3 && mousey<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*1.5) {
-                        coeff_visco = 1000*(mousex-width-width/30)/(width/6);
-                        x_coeff_visco = mousex;
-                    }else if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40+((height/4-height/10)/5)*4 && mousey<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*2.5) {
-                        k = 50000*(mousex-width-width/30)/(width/6);
-                        xk = mousex;
-                    }       
-                    
                     break;
 
             }
 
         }
-        dt = 10/FPS;
+        dt = 10/(10000/(double)elapsed_time);
         update();
         end_time = SDL_GetTicks();
         fflush(stdout);
 
         elapsed_time = end_time - start_time;
         
-        stat_aff(1000/elapsed_time);
+        // stat_aff(1000/elapsed_time);
         SDL_RenderPresent(renderer);
         SDL_UpdateWindowSurface(window);
     }
