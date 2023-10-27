@@ -12,8 +12,8 @@
 #include <dirent.h> 
 
 
-#define matwidth 25
-#define matlength 25
+#define matwidth 40
+#define matlength 40
 #define width 1000
 #define height 1000
 #define widthstats 525
@@ -53,7 +53,7 @@ double FPS = FPSconst;
 int xFPS = width+widthstats/30*2+widthstats/4;
 int yFPS = height/4+height/20;
 
-double const h = 100; // rayon kernel
+double const h = 35; // rayon kernel
 double smoothing_radius = h;
 int xh = width+widthstats/30*2+widthstats/4;
 int yh = height/4+height/20+(height/4-height/10)/5;
@@ -63,13 +63,13 @@ double m = mconst;
 int xm = width+widthstats/30*2;
 int ym = height/4+height/20+((height/4-height/10)/5)*2;
 
-double const t_dens =  (double) (matwidth * matlength) / (width * height) ; 
-double target_density = t_dens;
+double const t_dens = 0.0035  /*(double) (matwidth * matlength) / (width * height)*/ ; 
+double target_density = t_dens; // target density
 int x_coeff_visco = width+widthstats/30*2;
 int y_coeff_visco = height/4+height/20+((height/4-height/10)/5)*3;
 
 
-double const k = 1000; 
+double const k = 200000; 
 double pressure_multiplier = k; 
 int xk = width+widthstats/30*2+widthstats/4;
 int yk = height/4+height/20+((height/4-height/10)/5)*4;
@@ -80,6 +80,9 @@ int z = 0;
 
 const double pi = 3.1415926535;
 const double g = 9.80665;
+
+static const Uint32 hashK1 = 15823;
+static const Uint32 hashK2 = 9737333;
 
 typedef struct {
     double x,y;
@@ -111,6 +114,16 @@ typedef struct gridsquare {
 
 Case** grid;
 int subdiv = 20;
+
+typedef struct 
+{
+    int value;
+    int index;
+}Couple;
+
+
+Couple* Spatial_Lookup;
+int* start_indices;
 
 
 void initSDL()
@@ -154,14 +167,18 @@ void initmat()
         particle_grid.data[i] = (Particule*)malloc(sizeof(Particule)*particle_grid.MATwidth);
     }
 
+
+    Spatial_Lookup = (Couple*)malloc(sizeof(Couple)*(particle_grid.MATlength*particle_grid.MATwidth));
+    start_indices = (int*)malloc(sizeof(int)*particle_grid.MATlength*particle_grid.MATwidth);
+
     particle_grid.particle_on_top = (int*)calloc(0,sizeof(int)*numofseparation);
     srand(time(0));             
     for (int i = 0; i<particle_grid.MATlength; i++) {
         for (int j = 0; j<particle_grid.MATwidth; j++) {
-            particle_grid.data[i][j].position.x = (rand() %(x_right-x_left))+x_left;;
-            particle_grid.data[i][j].position.y = (rand() %(y_down-y_up))+y_up;; 
-            // particle_grid.data[i][j].position.x = (width-matlength*2*1.5*pradius)/2+i*pradius*2*1.5;
-            // particle_grid.data[i][j].position.y = (height-matwidth*2*1.5*pradius)/2+j*pradius*2*1.5;
+            // particle_grid.data[i][j].position.x = (rand() %(x_right-x_left))+x_left;;
+            // particle_grid.data[i][j].position.y = (rand() %(y_down-y_up))+y_up;; 
+            particle_grid.data[i][j].position.x = (width-matlength*2*1.5*pradius)/2+i*pradius*2*1.5;
+            particle_grid.data[i][j].position.y = (height-matwidth*2*1.5*pradius)/2+j*pradius*2*1.5;
 
 
             particle_grid.data[i][j].velocity.x = 0;
