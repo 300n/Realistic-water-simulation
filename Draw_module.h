@@ -44,7 +44,7 @@ void draw_Cartesian_axes()
     rect_texte.x = (height/40+(((height-(height/20))/20))+height/40+(((height-(height/20))/20)*2))/2-height/80;
     rect_texte.y = width-(width*3/40)+width/300;
     rect_texte.w = surface_texte->w;
-    rect_texte.h = surface_texte->h;
+    rect_texte.h = surface_texte->h;    
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
     rect_texte.x = (height/40*3)-1-height/40;
     rect_texte.y = ((width/40)+(((width-(width/20))/20)*(18+19)))/2+width/140;
@@ -53,12 +53,29 @@ void draw_Cartesian_axes()
 
 void draw_grid()
 {
-    int number_of_drawn_lines = 20;
+
     SDL_SetRenderDrawColor(renderer,RGB_lines,RGB_lines,RGB_lines,SDL_ALPHA_TRANSPARENT);
-    for (int i = 1; i<number_of_drawn_lines ;i++) {
-        SDL_RenderDrawLine(renderer,y_up+((y_down)/number_of_drawn_lines)*i,x_left,((y_up)+(((y_down)/number_of_drawn_lines)*i)),x_right);
-        SDL_RenderDrawLine(renderer,y_up,x_left+((x_right)/number_of_drawn_lines)*i,y_down,x_left+(((x_right)/number_of_drawn_lines)*i));
+    for (int i = 1; i<=(int)(width/smoothing_radius); i++) {
+        SDL_RenderDrawLine(renderer,smoothing_radius*i,0,smoothing_radius*i,height);
+        SDL_RenderDrawLine(renderer,0,smoothing_radius*i,width,smoothing_radius*i);
     }
+
+
+    // for (int i = 0; i<(int)width/smoothing_radius; i++) {
+    //     for (int j = 0; j<(int)height/smoothing_radius; j++) {
+    //         sprintf(texte, "(%d;%d)",j,i);
+    //         surface_texte = TTF_RenderText_Blended(smallfont, texte, white);
+    //         texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+    //         rect_texte.x = j*smoothing_radius;
+    //         rect_texte.y = i*smoothing_radius;
+
+
+    //         rect_texte.w = surface_texte->w;
+    //         rect_texte.h = surface_texte->h;    
+    //         SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+    //     }
+    // }
+
 
     SDL_SetRenderDrawColor(renderer,RGB_lines,RGB_lines,RGB_lines,SDL_ALPHA_TRANSPARENT);
     draw_rect(x_left,y_up,x_right-1,y_down-1);
@@ -75,6 +92,7 @@ void drawCircle(int X, int Y, int radius)
             }
         }
     }
+
 }
 
 void dessinerCercle(int x, int y, int rayon) {
