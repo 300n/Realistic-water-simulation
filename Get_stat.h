@@ -59,6 +59,8 @@ unsigned long get_cpu_time(const char* pid)
         fclose(stat_file);
         total_time = utime + stime;
         return total_time;
+    } else {
+        fclose(stat_file);
     }
     return 0;
 }
@@ -211,7 +213,7 @@ void stat_aff(int fps)
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
     O = 0;
     if (i%1 == 0) {
-        getCPUstat();
+        // getCPUstat();
         i++;
     } else {
         i++;
