@@ -721,7 +721,7 @@ void aff()
             }
 
         }
-        dt = 10/(10000/(double)elapsed_time);
+        dt = 20/(10000/(double)elapsed_time);
         update();
         end_time = SDL_GetTicks();
         fflush(stdout);
