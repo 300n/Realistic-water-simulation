@@ -19,7 +19,7 @@ int get_number_of_particle()
     int out = 0;
     for (int i = 0; i<particle_grid.MATlength; i++) {
         for (int j = 0; j<particle_grid.MATwidth; j++ ) {
-            if (particle_grid.data[i][j].position.x>=(width/30)-10 && particle_grid.data[i][j].position.x<=width-(width/30)+10 && particle_grid.data[i][j].position.y>=(height/30)-10 && particle_grid.data[i][j].position.y<=height-(height/30)+10) {
+            if (particle_grid.data[i][j].position.x>=0 && particle_grid.data[i][j].position.x<=width && particle_grid.data[i][j].position.y>=0 && particle_grid.data[i][j].position.y<=height) {
                 out++;
             }
         }
@@ -174,6 +174,7 @@ void getCPUstat()
 void stat_aff(int fps)    
 /*affichage des statistiques*/ 
 {
+    drawstatgrid();
     static int i = 0;
     sprintf(texte, "FPS : %d", fps);
     surface_texte = TTF_RenderText_Blended(font, texte, white);

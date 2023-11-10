@@ -10,24 +10,29 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <dirent.h> 
-#define x_left 0
-#define y_up 0
-#define y_down height
-#define x_right width 
+
+
 #define matwidth 40
 #define matlength 40
-#define width 1000
+#define width 1600
 #define height 1000
 #define widthstats 525
 #define widthscale 295
 #define pradius 5
-#define DAMPING_COEFFICIENT 0.9
 
+#define x_right width
+#define x_left 0
+#define y_up 0
+#define y_down height
+
+#define DAMPING_COEFFICIENT 0.9
 
 float x_left2 =0;
 float y_up2 =0;
 float y_down2 = height;
 float x_right2= width ;
+
+
 
 SDL_Renderer* renderer;
 SDL_Window* window;
@@ -45,7 +50,8 @@ int O = 0;
 char comm[256];
 int temperature = 20;
 int numof_particle_added = 0;
-double const FPSconst = 60; // nombre d'image par seconde 
+
+double const FPSconst = 20; // nombre d'image par seconde 
 double FPS = FPSconst;
 int xFPS = width+widthstats/30*2+widthstats/4;
 int yFPS = height/4+height/20;
@@ -71,9 +77,15 @@ double pressure_multiplier = k;
 int xk = width+widthstats/30*2+widthstats/4;
 int yk = height/4+height/20+((height/4-height/10)/5)*4;
 
+double near_pressure_multiplier = 1;
+
+
 int const numofseparation = (width)/matwidth;
 int particle_visible = 1;
 int z = 0;
+
+
+double const viscosity_strength = 0.5;
 
 const double pi = 3.1415926535;
 const double g = 9.80665;
@@ -87,6 +99,7 @@ typedef struct {
 
 typedef struct {
     double density;
+    double near_density;
     Vect2D position;
     Vect2D predicted_position;
     Vect2D velocity;
@@ -118,6 +131,12 @@ typedef struct
     int index;
 }Couple;
 
+typedef struct
+{
+    double first_value, second_value;
+}double2;
+
+
 
 Couple* Spatial_Lookup;
 int* start_indices;
@@ -127,7 +146,7 @@ void initSDL()
 /*initialise SDL*/
 {
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_CreateWindowAndRenderer(width+widthstats+widthscale, height, 0, &window, &renderer);
+    SDL_CreateWindowAndRenderer(width+widthstats, height, 0, &window, &renderer);
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
 }
 
@@ -139,13 +158,13 @@ int initTTF()
         SDL_Quit();
         return EXIT_FAILURE;
     }
-    font = TTF_OpenFont("/home/ben/Bureau/Prepa/TIPE/font.ttf", 18);
+    font = TTF_OpenFont("/home/bastien/2022-2023/Info/TIPE/font.ttf", 18);
     if (!font) {
         printf("Erreur : impossible d'ouvrir le fichier de police\n");
         TTF_Quit();
         SDL_Quit();
     }
-    smallfont = TTF_OpenFont("/home/ben/Bureau/Prepa/TIPE/font.ttf", 12);
+    smallfont = TTF_OpenFont("/home/bastien/2022-2023/Info/TIPE/font.ttf", 12);
     if (!smallfont) {
         printf("Erreur : impossible d'ouvrir le fichier de police\n");
         TTF_Quit();
@@ -276,4 +295,29 @@ void reset_const()
     xm = width+widthstats/30*2;
     xFPS = width+widthstats/30*2+widthstats/4;
     x_coeff_visco = width+widthstats/30*2;
+}
+
+
+Vect2D Vect2D_zero()
+{
+    Vect2D out;
+    out.x = 0;
+    out.y = 0;
+    return out;
+}
+
+Vect2D Vect2D_cpy(Vect2D input)
+{
+    Vect2D out;
+    out.x = input.x;
+    out.y = input.y;
+    return out;
+}
+
+double2 double2_cpy(double a, double b)
+{
+    double2 out;
+    out.first_value = a;
+    out.second_value = b;
+    return out;
 }

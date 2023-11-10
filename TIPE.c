@@ -11,6 +11,7 @@
 #include <dirent.h> 
 #include <stdint.h>
 #include <limits.h>
+#include <float.h>
 
 #include "Get_stat.h"
  
@@ -27,7 +28,7 @@ Uint32 current_time;
 double fq;
 double fqq;
 
-bool mouvement = false ;
+bool isPaused = false;
 
 
 
@@ -36,16 +37,6 @@ bool mouvement = false ;
 double Eularian_distance(int i, int j, int k, int n)
 {
     return sqrt(pow((particle_grid.data[k][n].predicted_position.x - particle_grid.data[i][j].predicted_position.x),2) + pow((particle_grid.data[k][n].predicted_position.y - particle_grid.data[i][j].predicted_position.y),2));
-}
-
-
-double max(double x, double y)
-{
-	if (x >= y) {
-		return x;
-	} else {
-		return y;
-	}
 }
 
 Vect2D Position_to_Cell(Vect2D point)
@@ -68,7 +59,6 @@ int Get_Key_from_Hash(u_int64_t hash)
     // printf("hash = %d\n\n", hash);
     return hash % (int)(particle_grid.MATlength*particle_grid.MATwidth);
 }
-
 
 void swap(Couple* a, Couple* b) {
     Couple temp = *a;
@@ -97,8 +87,6 @@ void quicksort(Couple arr[], int low, int high) {
         quicksort(arr, pi + 1, high);
     }
 }
-
-
 
 void Update_Spatial_Lookup()
 {
@@ -129,10 +117,9 @@ void Update_Spatial_Lookup()
     }
 }
 
-
-
 void color_particle_concerned(Vect2D sample_point)
 {
+    isPaused = !isPaused;
     Vect2D SampleCell = Position_to_Cell(sample_point);
     
     // Parcours le 3x3 autour de la case d'origine
@@ -142,7 +129,7 @@ void color_particle_concerned(Vect2D sample_point)
             SDL_SetRenderDrawColor(renderer,255,0,255,SDL_ALPHA_OPAQUE);
             dessinerCercle(i*smoothing_radius+smoothing_radius/2,j*smoothing_radius+smoothing_radius/2,smoothing_radius/2);
 
-            uint64_t key = Get_Key_from_Hash(HashCell(i,j));
+            int key = Get_Key_from_Hash(HashCell(i,j));
 
 
             int cellStartIndex = start_indices[key];
@@ -158,7 +145,7 @@ void color_particle_concerned(Vect2D sample_point)
         }
     }
     SDL_RenderPresent(renderer);
-    SDL_Delay(800);
+    SDL_Delay(100000);
 }
 
 
@@ -166,52 +153,65 @@ void color_particle_concerned(Vect2D sample_point)
 
 
 
-double Smoothing_Kernel(double radius, double dst)
+double Smoothing_Kernel(double dst)
 {
-    if (dst>=radius) { return 0; }
+    if (dst>=smoothing_radius) { return 0; }
     else {
-	    double volume = (pi * pow(radius, 4)) / 6;
-	    return ((radius - dst) * (radius - dst)) / volume;
+	    double volume = (pi * pow(smoothing_radius, 4)) / 6;
+	    return ((smoothing_radius - dst) * (smoothing_radius - dst)) / volume;
     }
 }
 
-double Smoothing_Kernel_Derivative(double radius, double dst)
+double Smoothing_Kernel_Derivative(double dst)
 {
-	if (dst>=radius) { return 0;}
+	if (dst>=smoothing_radius) { return 0;}
     else {
-		double scale = 12 / (pow(radius, 4) * pi);
-		return (dst - radius) * scale;
+		double volume = (pow(smoothing_radius, 4) * pi) / 12;
+		return (dst - smoothing_radius) / volume;
 	}
 }
 
-// double Calculate_Density(int k, int n)
-// {
-// 	double density = 0, q;
-// 	for (int i = 0; i<particle_grid.MATlength; i++) {
-// 		for (int j = 0; j<particle_grid.MATwidth; j++) {
-//             O++;
-// 			q = Eularian_distance(k, n, i, j);
-// 			if (q/smoothing_radius<1) {
-// 				double influence = Smoothing_Kernel(smoothing_radius, q);
-// 				density += m*influence;
-// 			}
-// 		}
-// 	}
-// 	return density;
-// }
-
-double Calculate_Density(int k, int n)
+double Viscosity_smoothing_kernel(double dst)
 {
-    double density = 0, q;
-    Vect2D point;
-    point.x = particle_grid.data[k][n].predicted_position.x;
-    point.y = particle_grid.data[k][n].predicted_position.y;
+    if (dst>=smoothing_radius) { return 0; }
+    else {
+        double volume = (pi * pow(smoothing_radius, 8)) / 4;
+        double v = smoothing_radius * smoothing_radius - dst * dst;
+        return v * v * v / volume;
+    }
+}
+
+double Near_density_Kernel( double dst)
+{
+    if (dst>=smoothing_radius) { return 0; }
+    else {
+        double volume = (pi * pow(smoothing_radius,5)) / 10;
+        double v = smoothing_radius - dst;
+        return v * v * v / volume;
+    }
+}
+
+double Near_density_Kernel_Derivative(double dst)
+{
+    if (dst>=smoothing_radius) { return 0; }
+    else {
+        double volume = (pi * pow(smoothing_radius,5)) / 30;
+        double v = smoothing_radius - dst;
+        return -v * v / volume;
+    }
+}
+
+
+double2 Calculate_Density(int k, int n)
+{
+    double density = 0, near_density = 0, q;
+    Vect2D point = Vect2D_cpy(particle_grid.data[k][n].predicted_position);
     Vect2D SampleCell = Position_to_Cell(point);
 
     // Parcours le 3x3 autour de la case d'origine
     for (int i = SampleCell.x - 1; i <= SampleCell.x + 1; i++) {
         for (int j = SampleCell.y - 1; j <= SampleCell.y + 1; j++) {
-            uint64_t key = Get_Key_from_Hash(HashCell(i,j));
+            int key = Get_Key_from_Hash(HashCell(i,j));
 
             if (key>=0 && key<particle_grid.MATlength*particle_grid.MATwidth) {
                 int cellStartIndex = start_indices[key];
@@ -221,93 +221,54 @@ double Calculate_Density(int k, int n)
                     O++;
                     int particle_Index = Spatial_Lookup[l].index;
 
-    
+
                     q = Eularian_distance(k,n,particle_Index/particle_grid.MATlength,particle_Index%particle_grid.MATlength);
 
-                    if (q<=smoothing_radius) {
-                        double influence = Smoothing_Kernel(smoothing_radius, q);
-			    	    density += m*influence;
-                    }
+			        density += m * Smoothing_Kernel(q);
+                    near_density += m * Near_density_Kernel(q);
+                    
 
                 }
             }
         }
     }
-    return density;
+    double2 out = double2_cpy(density,near_density);
+    return out;
 }
 
 
-void update_densities()
-{
-	for (int i = 0; i<particle_grid.MATlength; i++) {
-		for (int j = 0; j<particle_grid.MATwidth; j++) {
-			particle_grid.data[i][j].density = Calculate_Density(i,j);
-		}
-	}
-}
 
-double Convert_Density_To_Pressure(double density)
+double2 Convert_Density_To_Pressure(double density, double near_density)
 {
 	double density_error = 	density - target_density;
 	double pressure = density_error * pressure_multiplier;
-	return pressure;
+    double near_pressure = near_density * near_pressure_multiplier;
+    double2 pressures = double2_cpy(pressure,near_pressure);
+	return pressures;
 }
 
 double Calculate_Shared_Pressure(double densityA, double densityB)
 {
-	double pressureA = Convert_Density_To_Pressure(densityA);
-	double pressureB = Convert_Density_To_Pressure(densityB);
+	double pressureA = Convert_Density_To_Pressure(densityA,0
+    ).first_value;
+	double pressureB = Convert_Density_To_Pressure(densityB,0).first_value;
 	return (pressureA + pressureB) / 2;
 }
 
-// Vect2D Calculate_Pressure_Force(int k, int n)
-// {	
-// 	double q;
-// 	Vect2D property_pressure_force;
-//     property_pressure_force.x = 0;
-//     property_pressure_force.y = 0;
-// 	for (int i = 0; i<particle_grid.MATlength; i++) {
-// 		for (int j = 0; j<particle_grid.MATwidth; j++) {
-// 			if (k != i || n != j) {
-//                 O++;
-// 				q = Eularian_distance(k, n, i ,j);
-// 				if (q/smoothing_radius<1) {
-// 					Vect2D dir; 
-//                     if (q!=(double)0) {
-// 					    dir.x = (particle_grid.data[i][j].position.x - particle_grid.data[k][n].position.x) / q; 
-// 					    dir.y = (particle_grid.data[i][j].position.y - particle_grid.data[k][n].position.y) / q;
-//                     }
-// 					double slope = Smoothing_Kernel_Derivative(smoothing_radius,q);
-// 					double density = particle_grid.data[i][j].density;
-// 					double shared_pressure = Calculate_Shared_Pressure(density,particle_grid.data[k][n].density);
-//                     if (density!=(double)0) {
-// 					    property_pressure_force.x += (shared_pressure * dir.x * slope * m) / density ;
-// 					    property_pressure_force.y += (shared_pressure * dir.y * slope * m) / density ;
-//                     }
-// 				}
-// 			}
-// 		}
-// 	}
-// 	return property_pressure_force;
-// }
 
 Vect2D Calculate_Pressure_Force(int k, int n)
 {
     double q;
-	Vect2D property_pressure_force;
-    property_pressure_force.x = 0;
-    property_pressure_force.y = 0;
+	Vect2D property_pressure_force = Vect2D_zero();
 
-    Vect2D point;
-    point.x = particle_grid.data[k][n].predicted_position.x;
-    point.y = particle_grid.data[k][n].predicted_position.y;
+    Vect2D point = Vect2D_cpy(particle_grid.data[k][n].predicted_position);
     Vect2D SampleCell = Position_to_Cell(point);
 
 
     // Parcours le 3x3 autour de la case d'origine
     for (int i = SampleCell.x - 1; i <= SampleCell.x + 1; i++) {
         for (int j = SampleCell.y - 1; j <= SampleCell.y + 1; j++) {
-            uint64_t key = Get_Key_from_Hash(HashCell(i,j));
+            int key = Get_Key_from_Hash(HashCell(i,j));
             int cellStartIndex = start_indices[key];
             
             for (int l = cellStartIndex; l<particle_grid.MATlength*particle_grid.MATwidth; l++) {
@@ -316,21 +277,22 @@ Vect2D Calculate_Pressure_Force(int k, int n)
                 int particle_Index = Spatial_Lookup[l].index;
 
                 if (k!=particle_Index/particle_grid.MATlength || n !=particle_Index%particle_grid.MATlength) {
+
+                
                     q = Eularian_distance(k,n,particle_Index/particle_grid.MATlength,particle_Index%particle_grid.MATlength);
-                    if (q<=smoothing_radius) {
-                        Vect2D dir; 
-                        if (q!=(double)0) {
-				            dir.x = (particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].predicted_position.x - particle_grid.data[k][n].predicted_position.x) / q; 
-				            dir.y = (particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].predicted_position.y - particle_grid.data[k][n].predicted_position.y) / q;
-                        }
-				        double slope = Smoothing_Kernel_Derivative(smoothing_radius,q);
-				        double density = particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].density;
-				        double shared_pressure = Calculate_Shared_Pressure(density,particle_grid.data[k][n].density);
-                        if (density!=(double)0) {
-				            property_pressure_force.x += (shared_pressure * dir.x * slope * m) / density ;
-				            property_pressure_force.y += (shared_pressure * dir.y * slope * m) / density ;
-                        }
+                    Vect2D dir; 
+                    if (q!=(double)0) {
+				        dir.x = (particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].predicted_position.x - particle_grid.data[k][n].predicted_position.x) / q; 
+				        dir.y = (particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].predicted_position.y - particle_grid.data[k][n].predicted_position.y) / q;
                     }
+				    double slope = Smoothing_Kernel_Derivative(q);
+				    double density = particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].density;
+				    double shared_pressure = Calculate_Shared_Pressure(density,particle_grid.data[k][n].density);
+                    if (density!=(double)0) {
+				        property_pressure_force.x += (shared_pressure * dir.x * slope * m) / density ;
+				        property_pressure_force.y += (shared_pressure * dir.y * slope * m) / density ;
+                    }
+                    
                 }
             }
         }
@@ -340,6 +302,58 @@ Vect2D Calculate_Pressure_Force(int k, int n)
 
 
 
+
+Vect2D Calculate_Viscosity_Force(int k, int n)
+{isPaused = !isPaused;
+    Vect2D viscosityforce = Vect2D_zero();
+    Vect2D position = Vect2D_cpy(particle_grid.data[k][n].position);
+    Vect2D SampleCell = Position_to_Cell(position);
+    // Parcours le 3x3 autour de la case d'origine
+    for (int i = SampleCell.x - 1; i <= SampleCell.x + 1; i++) {
+        for (int j = SampleCell.y - 1; j <= SampleCell.y + 1; j++) {
+            int key = Get_Key_from_Hash(HashCell(i,j));
+            int cellStartIndex = start_indices[key];
+
+            for (int l = cellStartIndex; l<particle_grid.MATlength*particle_grid.MATwidth; l++) {
+                if (Spatial_Lookup[l].value != key) { break; }
+                O++;
+                int particle_Index = Spatial_Lookup[l].index;
+
+                if (k!=particle_Index/particle_grid.MATlength || n !=particle_Index%particle_grid.MATlength) {
+                     double q = Eularian_distance(k,n,particle_Index/particle_grid.MATlength,particle_Index%particle_grid.MATlength);
+                    if (q<=smoothing_radius) {
+                        double influence = Viscosity_smoothing_kernel(q);
+                        viscosityforce.x += (particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].velocity.x - particle_grid.data[k][n].velocity.x) * influence;
+                        viscosityforce.y += (particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].velocity.y - particle_grid.data[k][n].velocity.y) * influence;
+
+                    }
+                }
+            }
+        }
+    }
+    return viscosityforce;
+}
+
+Vect2D Mouse_force(Vect2D inputPos, int k ,int n, double strength)
+{
+    Vect2D interaction_Force = Vect2D_zero();
+    Vect2D offset;
+    offset.x = inputPos.x - particle_grid.data[k][n].position.x;
+    offset.y = inputPos.y - particle_grid.data[k][n].position.y;
+    double q = sqrt(pow(offset.x,2)+pow(offset.y,2));
+
+    if (q <= smoothing_radius) {
+        Vect2D dir_to_input_force = Vect2D_zero();
+        if (q >= FLT_EPSILON) {
+            dir_to_input_force.x = offset.x / q;
+            dir_to_input_force.y = offset.y / q;
+        }
+        double centreT = 1 - q / smoothing_radius;
+        interaction_Force.x = (dir_to_input_force.x * strength - particle_grid.data[k][n].velocity.x) * centreT;
+        interaction_Force.y = (dir_to_input_force.y * strength - particle_grid.data[k][n].velocity.y) * centreT;
+    }
+    return interaction_Force;
+}
 
 void Examine_Density(int x, int y)
 {
@@ -353,11 +367,11 @@ void Examine_Density(int x, int y)
 		for (int j = 0; j<particle_grid.MATwidth; j++) {
             particle_grid.data[i][j].color[0] = 0;
             q = sqrt(pow((particle_grid.data[i][j].position.x-x),2) + pow((particle_grid.data[i][j].position.y - y),2)) ;
-			if (q/smoothing_radius<=1) {
-                particle_grid.data[i][j].color[0] = 255;
-				double influence = Smoothing_Kernel(smoothing_radius, q);
-				density += m*influence;
-			}
+		
+            particle_grid.data[i][j].color[0] = 255;
+			double influence = Smoothing_Kernel(q);
+			density += m*influence;
+			
 		}
 	}
     sprintf(texte, "Density : %lf", density);
@@ -393,11 +407,10 @@ void Visualize_Density()
             density = 0;
             for (int i = 0; i<particle_grid.MATlength; i++) {
 		        for (int j = 0; j<particle_grid.MATwidth; j++) {
-                    q = sqrt(pow((particle_grid.data[i][j].position.x-w),2) + pow((particle_grid.data[i][j].position.y - h),2)) ;
-			            if (q/smoothing_radius<=1) {
-				            double influence = Smoothing_Kernel(smoothing_radius, q);
-				            density += m*influence;
-			            }
+                        q = sqrt(pow((particle_grid.data[i][j].position.x-w),2) + pow((particle_grid.data[i][j].position.y - h),2)) ;
+				        double influence = Smoothing_Kernel(q);
+				        density += m*influence;
+			        
 		            }
             }
             delta = ((density-target_density));
@@ -412,7 +425,6 @@ void Visualize_Density()
                 SDL_SetRenderDrawColor(renderer,0,0,delta,0.1);
             }
             drawCircle(w,h,5);
-
 
         }
     }
@@ -443,108 +455,121 @@ void particle_out_of_the_grid()
     }
 }
 
-float threshold;
 
 void update()   
 /*mise à jour des positions de chaque particule*/
 {
-    // Clear grid and draw initial grid
-        clear_grid();
-        drawstatgrid();
+    clear_grid();
+    draw_scale();
+    if (!isPaused) {
+        // Clear grid and draw initial grid
         draw_grid();
-        draw_scale();
-    // Set render color to blue
-    SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
+
+        // Set render color to blue
+        SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
 
 
 
 
 
-	for (int i = 0 ; i < particle_grid.MATlength ; i++) {
-        for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
-			particle_grid.data[i][j].velocity.y += g * 20 / 120.0f;
-            particle_grid.data[i][j].predicted_position.x = particle_grid.data[i][j].position.x + particle_grid.data[i][j].velocity.x* 1 / 120.0f;
-            particle_grid.data[i][j].predicted_position.y = particle_grid.data[i][j].position.y + particle_grid.data[i][j].velocity.y* 1 / 120.0f;
-		}
-	}
+	    for (int i = 0 ; i < particle_grid.MATlength ; i++) {
+            for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
+	    		particle_grid.data[i][j].velocity.y += g * 20 / FPS;
+                particle_grid.data[i][j].predicted_position.x = particle_grid.data[i][j].position.x + particle_grid.data[i][j].velocity.x* 1 / FPS;
+                particle_grid.data[i][j].predicted_position.y = particle_grid.data[i][j].position.y + particle_grid.data[i][j].velocity.y* 1 / FPS;
+	    	}
+	    }
 
 
-    Update_Spatial_Lookup();
+        Update_Spatial_Lookup();
 
-    for (int i = 0 ; i < particle_grid.MATlength ; i++) {
-        for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
-            particle_grid.data[i][j].density = Calculate_Density(i,j);
+        for (int i = 0 ; i < particle_grid.MATlength ; i++) {
+            for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
+                double2 densities = Calculate_Density(i,j);
+                particle_grid.data[i][j].density = densities.first_value;
+                particle_grid.data[i][j].near_density = densities.second_value;
+            }
         }
-    }
 
-    // Update particle velocities
-    for (int i = 0 ; i < particle_grid.MATlength ; i++) {
-        for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
-            // Calculate pressure force
-    		Vect2D pressure_force = Calculate_Pressure_Force(i,j);
+        // Update particle velocities
+        for (int i = 0 ; i < particle_grid.MATlength ; i++) {
+            for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
+                // Calculate pressure force
+        		Vect2D pressure_force = Calculate_Pressure_Force(i,j);
 
-            // Calculate pressure acceleration
-    		Vect2D pressure_acceleration;
-    		pressure_acceleration.x = pressure_force.x / particle_grid.data[i][j].density;
-    		pressure_acceleration.y = pressure_force.y / particle_grid.data[i][j].density;
+                // Calculate pressure acceleration
+        		Vect2D pressure_acceleration;
+        		pressure_acceleration.x = pressure_force.x / particle_grid.data[i][j].density;
+        		pressure_acceleration.y = pressure_force.y / particle_grid.data[i][j].density;
 
-            // Update particle velocity
-    		particle_grid.data[i][j].velocity.x += pressure_acceleration.x * dt;
-    		particle_grid.data[i][j].velocity.y += pressure_acceleration.y * dt; 
-    	}
-    }   
+                // Update particle velocity
+        		particle_grid.data[i][j].velocity.x += pressure_acceleration.x * dt;;
+        		particle_grid.data[i][j].velocity.y += pressure_acceleration.y * dt;; 
+        	}
+        }   
 
-    // Update particle positions
-	for (int i = 0 ; i < particle_grid.MATlength ; i++) {
-        for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
-			particle_grid.data[i][j].position.x += particle_grid.data[i][j].velocity.x*dt;
-            particle_grid.data[i][j].position.y += particle_grid.data[i][j].velocity.y*dt;
-		}
-	}
-
-    particle_out_of_the_grid();
-
-    
-
-    for (int i = 0 ; i < particle_grid.MATlength ; i++) {
-        for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
-            SDL_SetRenderDrawColor(renderer, particle_grid.data[i][j].color[0], particle_grid.data[i][j].color[1], particle_grid.data[i][j].color[2], SDL_ALPHA_OPAQUE);
-            if (particle_visible == 1) {
-                drawCircle(particle_grid.data[i][j].position.x,particle_grid.data[i][j].position.y,pradius);
+        for (int i = 0; i < particle_grid.MATlength ; i++) {
+            for (int j = 0; j < particle_grid.MATwidth ; j++) {
+                Vect2D viscosity_force = Calculate_Viscosity_Force(i,j);
+                particle_grid.data[i][j].velocity.x += viscosity_force.x * viscosity_strength * dt;
+        		particle_grid.data[i][j].velocity.y += viscosity_force.y * viscosity_strength *  dt; 
+            }
+        }
 
 
-                // sprintf(texte, "%d", i*particle_grid.MATlength+j);
-                // surface_texte = TTF_RenderText_Blended(smallfont, texte, white);
-                // texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-                // rect_texte.x = particle_grid.data[i][j].position.x;
-                // rect_texte.y = particle_grid.data[i][j].position.y;
-                // rect_texte.w = surface_texte->w;
-                // rect_texte.h = surface_texte->h;    
-                // SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+        // Update particle positions
+	    for (int i = 0 ; i < particle_grid.MATlength ; i++) {
+            for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
+	    		particle_grid.data[i][j].position.x += particle_grid.data[i][j].velocity.x*dt;
+                particle_grid.data[i][j].position.y += particle_grid.data[i][j].velocity.y*dt;
+	    	}
+	    }
+
+        particle_out_of_the_grid();
+
+
+
+        for (int i = 0 ; i < particle_grid.MATlength ; i++) {
+            for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
+                SDL_SetRenderDrawColor(renderer, particle_grid.data[i][j].color[0], particle_grid.data[i][j].color[1], particle_grid.data[i][j].color[2], SDL_ALPHA_OPAQUE);
+                if (particle_visible == 1) {
+                    drawCircle(particle_grid.data[i][j].position.x,particle_grid.data[i][j].position.y,pradius);
+
+
+                    // sprintf(texte, "%d", i*particle_grid.MATlength+j);
+                    // surface_texte = TTF_RenderText_Blended(smallfont, texte, white);
+                    // texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+                    // rect_texte.x = particle_grid.data[i][j].position.x;
+                    // rect_texte.y = particle_grid.data[i][j].position.y;
+                    // rect_texte.w = surface_texte->w;
+                    // rect_texte.h = surface_texte->h;    
+                    // SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+
+                }
+                particle_grid.data[i][j].color[0] = 0;
+                particle_grid.data[i][j].color[1] = 0;
+                particle_grid.data[i][j].color[2] = 255;
 
             }
-            particle_grid.data[i][j].color[0] = 0;
-            particle_grid.data[i][j].color[1] = 0;
-            particle_grid.data[i][j].color[2] = 255;
-
         }
     }
-    
 }
+
+
 
 void shockwave(){
     int timeout = SDL_GetTicks64() + 1000; 
     while (SDL_GetTicks64() < timeout){
         update();
         SDL_RenderPresent(renderer);
-        x_left2+=1;
-        x_right2+= 1;
+        x_left2+=10;
+        x_right2+= 10;
     }
     while (x_left2>x_left){
         update();
         SDL_RenderPresent(renderer);
-        x_left2-=2;
-        x_right2-= 2;
+        x_left2-= 5;
+        x_right2-= 5;
     }
     x_left2= x_left;
     x_right2= x_right;
@@ -559,11 +584,11 @@ void shockwave(){
 void aff()
 /*affichage des particules*/
 {
-    int running = 1, paused, mousex, mousey;
-    SDL_Event Event, Pause;
+    int running = 1, choice = 1, mousex, mousey;
+    SDL_Event Event;
     initSDL();
     initTTF();
-    Uint32 start_time, end_time, elapsed_time = FPS, pausedtime;
+    Uint32 start_time, end_time, elapsed_time = FPS;
     restart:
     initmat();
     init_prog();
@@ -584,55 +609,7 @@ void aff()
                         running = 0;
                     }
                     if (Event.key.keysym.scancode == SDL_SCANCODE_SPACE) {
-                        pausedtime = (double)(clock() - starttime);
-                        paused = 1;
-                        while (paused) {
-                            while (SDL_PollEvent(&Pause)) {
-                                if (Pause.type == SDL_KEYDOWN ) {
-                                    if (Pause.key.keysym.scancode == SDL_SCANCODE_SPACE) {
-                                        paused = 0;
-                                    }
-                                    if (Pause.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
-                                        paused = 0;
-                                        running = 0;
-                                    }
-                                    if (Pause.key.keysym.scancode == SDL_SCANCODE_F5) {
-                                        goto restart;
-                                    }
-                                    if (Pause.key.keysym.scancode == SDL_SCANCODE_RIGHT) {
-                                        dt = 1/FPS*5;
-                                        for (int i = 0; i<10; i++) {
-                                            update();
-                                        }
-                                        stat_aff(FPS);
-                                        SDL_RenderPresent(renderer);
-                                        dt = 1/FPS;
-                                    }
-                                    if (Pause.key.keysym.scancode == SDL_SCANCODE_LEFT) {
-                                        dt = -1/FPS*5;
-                                        for (int i = 0; i<10; i++) {
-                                            update();
-                                        }
-                                        stat_aff(FPS);
-                                        SDL_RenderPresent(renderer);
-                                        dt = 1/FPS;
-                                    }
-                                    if (Pause.key.keysym.scancode == SDL_SCANCODE_I ){
-                                        Colorflipped();
-                                    }
-                                    if (Pause.key.keysym.scancode == SDL_SCANCODE_R) {
-                                        reset_const();
-                                    }
-                                    if (Pause.key.keysym.scancode == SDL_SCANCODE_S) {
-                                        particle_visible*=-1;
-                                    }
-                                } else if (Pause.type == SDL_QUIT) {
-                                    paused = 0;
-                                    running = 0;
-                                }
-                            }
-                        }
-                        starttime += (double)((clock() - starttime)-pausedtime);
+                        isPaused = !isPaused;
                     }
                     if (Event.key.keysym.scancode == SDL_SCANCODE_F5) {
                         goto restart;
@@ -661,6 +638,9 @@ void aff()
                     if (Event.key.keysym.scancode == SDL_SCANCODE_S) {
                         particle_visible*=-1;
                     }
+                    if (Event.key.keysym.scancode == SDL_SCANCODE_C) {
+                        choice *= -1;
+                    }
                     if (Event.key.keysym.scancode == SDL_SCANCODE_G) {
                         shockwave();
                     }
@@ -677,78 +657,138 @@ void aff()
                 default:
                     break;
                 case SDL_MOUSEBUTTONDOWN:
-
+                    Vect2D Sample_point;
                     SDL_GetMouseState(&mousex,&mousey);
-                    if (Event.button.button == SDL_BUTTON_LEFT) {
-                        if (mousex > 0 && mousex < width && mousey > 0 && mousey < height) {
-                                SDL_GetMouseState(&mousex, &mousey);
-                                Examine_Density(mousex,mousey);
+                    Sample_point.x = mousex;
+                    Sample_point.y = mousey;
+                    if (choice == 1) {
+                        if (Sample_point.x > 0 && Sample_point.x < width && Sample_point.y > 0 && Sample_point.y < height) {
                             while (Event.type != SDL_MOUSEBUTTONUP) {
+                                SDL_GetMouseState(&mousex,&mousey);
+                                Sample_point.x = mousex;
+                                Sample_point.y = mousey;
+                                Vect2D SampleCell = Vect2D_cpy(Position_to_Cell(Sample_point));
+                                // Parcours le 3x3 autour de la case d'origine
+                                for (int i = SampleCell.x - 1; i <= SampleCell.x + 1; i++) {
+                                    for (int j = SampleCell.y - 1; j <= SampleCell.y + 1; j++) {
+                                        int key = Get_Key_from_Hash(HashCell(i,j));
+                                        int cellStartIndex = start_indices[key];
+                                        for (int l = cellStartIndex; l<particle_grid.MATlength*particle_grid.MATwidth; l++) {
+                                            if (Spatial_Lookup[l].value != key) { break; }
+                                            O++;
+                                            int particle_Index = Spatial_Lookup[l].index;
+
+                                            particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].color[0] = 255;
+
+                                            if (Event.button.button == SDL_BUTTON_LEFT) {
+                                                Mouse_force(Sample_point,particle_Index/particle_grid.MATlength,particle_Index%particle_grid.MATlength,-1);
+                                            } else if (Event.button.button == SDL_BUTTON_RIGHT) {
+                                                Mouse_force(Sample_point,particle_Index/particle_grid.MATlength,particle_Index%particle_grid.MATlength,1);
+                                            }
+                                        }
+
+                                    }
+                                }
+
+                                update();
+                                end_time = SDL_GetTicks();
+                                elapsed_time = end_time - start_time;
+                                stat_aff(1000/elapsed_time);
+                                SDL_RenderPresent(renderer);
+                                SDL_UpdateWindowSurface(window);
+
+
                                 SDL_PollEvent(&Event);
                             }
-                        }
-                        if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40 && mousey<(height/4+height/20+height/400)+height/100) {
-                            FPS = 120*(mousex-width-width/30)/(width/6);
-                            xFPS = mousex;
-                        } else if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40+(height/4-height/10)/5 && mousey<(height/4+height/20+height/400)+height/100+(height/4-height/10)/5) {
-                            smoothing_radius = 500  *(mousex-width-width/30)/(width/6);
-                            xh = mousex;
-                        } else if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40+((height/4-height/10)/5)*2 && mousey<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)) {
-                            m = 10*(mousex-width-width/30)/(width/6)+1;
-                            xm = mousex;
-                        } else if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40+((height/4-height/10)/5)*3 && mousey<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*1.5) {
-                            target_density = 0.01*(mousex-width-width/30)/(width/6);
-                            x_coeff_visco = mousex;
-                        }else if (mousex>(width+widthstats/30*2) && mousex<(width+widthstats/30*2+widthstats/2) && mousey>(height/4+height/20)-height/40+((height/4-height/10)/5)*4 && mousey<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*2.5) {
-                            pressure_multiplier = 100000*(mousex-width-width/30)/(width/6);
-                            xk = mousex;
-                        }/* else if (mousex>x_left && mousex<x_right && mousey> y_up && mousey<y_down) {
-                             SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-                             drawCircle(mousex,mousey,20);
-                             SDL_RenderPresent(renderer);
-                        }*/
-                    } else if (Event.button.button == SDL_BUTTON_RIGHT) {
-
-                        // if (mousex > 0 && mousex < width+500 && mousey > 0 && mousey < height) {
-                        //         SDL_GetMouseState(&mousex, &mousey);
-                        //         Visualize_Density();
-                        //     while (Event.type != SDL_MOUSEBUTTONUP) {
-                        //         SDL_PollEvent(&Event);
-                        //     }
-                        // }
-
-
-                        SDL_GetMouseState(&mousex, &mousey);
-                        Vect2D out;
-                        out.x = mousex;
-                        out.y = mousey;
-
-                        color_particle_concerned(out);
-                        update();
-
-
-                        SDL_RenderPresent(renderer);
-                        while (Event.type != SDL_MOUSEBUTTONUP) {
-                                SDL_PollEvent(&Event);
+                        } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40 && Sample_point.y<(height/4+height/20+height/400)+height/100) {
+                            FPS = 120*(Sample_point.x-width-width/30)/(width/6);
+                            xFPS = Sample_point.x;
+                        } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+(height/4-height/10)/5 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/4-height/10)/5) {
+                            smoothing_radius = 100  *(Sample_point.x-width-width/30)/(width/6);
+                            xh = Sample_point.x;
+                        } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*2 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)) {
+                            m = 10*(Sample_point.x-width-width/30)/(width/6)+1;
+                            xm = Sample_point.x;
+                        } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*3 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*1.5) {
+                            target_density = 0.01*(Sample_point.x-width-width/30)/(width/6);
+                            x_coeff_visco = Sample_point.x;
+                        }else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*4 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*2.5) {
+                            pressure_multiplier = 100000*(Sample_point.x-width-width/30)/(width/6);
+                            xk = Sample_point.x;
                         }
 
+
+                    } else if (choice == -1) {
+                        if (Event.button.button == SDL_BUTTON_LEFT) {
+                            if (Sample_point.x > 0 && Sample_point.x < width && Sample_point.y > 0 && Sample_point.y < height) {
+                                Examine_Density(Sample_point.x,Sample_point.y);    
+                                while (Event.type != SDL_MOUSEBUTTONUP) {
+                                    SDL_PollEvent(&Event);
+                                }
+                            }
+                            if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40 && Sample_point.y<(height/4+height/20+height/400)+height/100) {
+                                FPS = 120*(Sample_point.x-width-width/30)/(width/6);
+                                xFPS = Sample_point.x;
+                            } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+(height/4-height/10)/5 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/4-height/10)/5) {
+                                smoothing_radius = 500  *(Sample_point.x-width-width/30)/(width/6);
+                                xh = Sample_point.x;
+                            } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*2 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)) {
+                                m = 10*(Sample_point.x-width-width/30)/(width/6)+1;
+                                xm = Sample_point.x;
+                            } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*3 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*1.5) {
+                                target_density = 0.01*(Sample_point.x-width-width/30)/(width/6);
+                                x_coeff_visco = Sample_point.x;
+                            }else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*4 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*2.5) {
+                                pressure_multiplier = 200000*(Sample_point.x-width-width/30)/(width/6);
+                                xk = Sample_point.x;
+                            }/* else if (Sample_point.x>x_left && Sample_point.x<x_right && Sample_point.y> y_up && Sample_point.y<y_down) {
+                                 SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+                                 drawCircle(Sample_point.x,Sample_point.y,20);
+                                 SDL_RenderPresent(renderer);
+                            }*/
+                        } else if (Event.button.button == SDL_BUTTON_RIGHT) {
+
+                            // if (Sample_point.x > 0 && Sample_point.x < width+500 && Sample_point.y > 0 && Sample_point.y < height) {
+                            //         SDL_GetMouseState(&Sample_point.x, &Sample_point.y);
+                            //         Visualize_Density();
+                            //     while (Event.type != SDL_MOUSEBUTTONUP) {
+                            //         SDL_PollEvent(&Event);
+                            //     }
+                            // }
+
+                            color_particle_concerned(Sample_point);
+                            update();
+
+
+                            SDL_RenderPresent(renderer);
+                            while (Event.type != SDL_MOUSEBUTTONUP) {
+                                    SDL_PollEvent(&Event);
+                            }
+
+                        }
                     }
-                    break;
 
+
+                    break;
             }
 
         }
-        dt = 20/(10000/(double)elapsed_time);
+
+        dt = 0.049000;
+        if (elapsed_time!=0) {
+            dt = 0.049000;
+        } 
+
         update();
         end_time = SDL_GetTicks();
         fflush(stdout);
-
+        stat_aff(1000/((double)elapsed_time+0.0001));
         elapsed_time = end_time - start_time;
-        
-        stat_aff(1000/elapsed_time);
-        
-        SDL_RenderPresent(renderer);
-        SDL_UpdateWindowSurface(window);
+        // printf("dt = %lf\n", dt);
+        if (!isPaused) {
+            SDL_RenderPresent(renderer);
+            SDL_UpdateWindowSurface(window);
+        }
     }
 
 
