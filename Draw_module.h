@@ -59,26 +59,8 @@ void draw_grid()
         SDL_RenderDrawLine(renderer,smoothing_radius*i,0,smoothing_radius*i,height);
         SDL_RenderDrawLine(renderer,0,smoothing_radius*i,width,smoothing_radius*i);
     }
-
-
-    // for (int i = 0; i<(int)width/smoothing_radius; i++) {
-    //     for (int j = 0; j<(int)height/smoothing_radius; j++) {
-    //         sprintf(texte, "(%d;%d)",j,i);
-    //         surface_texte = TTF_RenderText_Blended(smallfont, texte, white);
-    //         texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    //         rect_texte.x = j*smoothing_radius;
-    //         rect_texte.y = i*smoothing_radius;
-
-
-    //         rect_texte.w = surface_texte->w;
-    //         rect_texte.h = surface_texte->h;    
-    //         SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    //     }
-    // }
-
-
     SDL_SetRenderDrawColor(renderer,RGB_lines,RGB_lines,RGB_lines,SDL_ALPHA_TRANSPARENT);
-    draw_rect(x_left,y_up,x_right-1,y_down-1);
+    draw_rect(x_left2,y_up,x_right2-1,y_down-1);
     draw_Cartesian_axes();
 
 }

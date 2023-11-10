@@ -10,8 +10,10 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <dirent.h> 
-
-
+#define x_left 0
+#define y_up 0
+#define y_down height
+#define x_right width 
 #define matwidth 40
 #define matlength 40
 #define width 1000
@@ -19,17 +21,13 @@
 #define widthstats 525
 #define widthscale 295
 #define pradius 5
-
-#define x_right width
-#define x_left 0
-#define y_up 0
-#define y_down height
-
 #define DAMPING_COEFFICIENT 0.9
 
 
-
-
+float x_left2 =0;
+float y_up2 =0;
+float y_down2 = height;
+float x_right2= width ;
 
 SDL_Renderer* renderer;
 SDL_Window* window;
@@ -47,7 +45,6 @@ int O = 0;
 char comm[256];
 int temperature = 20;
 int numof_particle_added = 0;
-
 double const FPSconst = 60; // nombre d'image par seconde 
 double FPS = FPSconst;
 int xFPS = width+widthstats/30*2+widthstats/4;
@@ -142,13 +139,13 @@ int initTTF()
         SDL_Quit();
         return EXIT_FAILURE;
     }
-    font = TTF_OpenFont("/home/bastien/2022-2023/Info/TIPE/font.ttf", 18);
+    font = TTF_OpenFont("/home/ben/Bureau/Prepa/TIPE/font.ttf", 18);
     if (!font) {
         printf("Erreur : impossible d'ouvrir le fichier de police\n");
         TTF_Quit();
         SDL_Quit();
     }
-    smallfont = TTF_OpenFont("/home/bastien/2022-2023/Info/TIPE/font.ttf", 12);
+    smallfont = TTF_OpenFont("/home/ben/Bureau/Prepa/TIPE/font.ttf", 12);
     if (!smallfont) {
         printf("Erreur : impossible d'ouvrir le fichier de police\n");
         TTF_Quit();

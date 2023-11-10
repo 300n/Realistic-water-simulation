@@ -27,6 +27,7 @@ Uint32 current_time;
 double fq;
 double fqq;
 
+bool mouvement = false ;
 
 
 
@@ -424,11 +425,11 @@ void particle_out_of_the_grid()
     for (int i = 0; i<particle_grid.MATlength; i++) { 
         for (int j = 0; j<particle_grid.MATwidth; j++) {
             O+=4;           
-            if (particle_grid.data[i][j].position.x<x_left+pradius) {
-                particle_grid.data[i][j].position.x = x_left+pradius;
+            if (particle_grid.data[i][j].position.x<x_left2+pradius) {
+                particle_grid.data[i][j].position.x = x_left2+pradius;
                 particle_grid.data[i][j].velocity.x *= DAMPING_COEFFICIENT;
-            } else if (particle_grid.data[i][j].position.x>x_right-pradius) {    
-                particle_grid.data[i][j].position.x = x_right-pradius;
+            } else if (particle_grid.data[i][j].position.x>x_right2-pradius) {    
+                particle_grid.data[i][j].position.x = x_right2-pradius;
                 particle_grid.data[i][j].velocity.x *= DAMPING_COEFFICIENT;
             }
             if (particle_grid.data[i][j].position.y<y_up+pradius) {
@@ -448,11 +449,10 @@ void update()
 /*mise à jour des positions de chaque particule*/
 {
     // Clear grid and draw initial grid
-    clear_grid();
-    drawstatgrid();
-    draw_grid();
-    draw_scale();
-
+        clear_grid();
+        drawstatgrid();
+        draw_grid();
+        draw_scale();
     // Set render color to blue
     SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
 
@@ -532,9 +532,23 @@ void update()
     
 }
 
-
-
-
+void shockwave(){
+    int timeout = SDL_GetTicks64() + 1000; 
+    while (SDL_GetTicks64() < timeout){
+        update();
+        SDL_RenderPresent(renderer);
+        x_left2+=1;
+        x_right2+= 1;
+    }
+    while (x_left2>x_left){
+        update();
+        SDL_RenderPresent(renderer);
+        x_left2-=2;
+        x_right2-= 2;
+    }
+    x_left2= x_left;
+    x_right2= x_right;
+}
 
 
 
@@ -646,6 +660,9 @@ void aff()
                     }
                     if (Event.key.keysym.scancode == SDL_SCANCODE_S) {
                         particle_visible*=-1;
+                    }
+                    if (Event.key.keysym.scancode == SDL_SCANCODE_G) {
+                        shockwave();
                     }
                     break;
                 case SDL_WINDOWEVENT_SIZE_CHANGED:
