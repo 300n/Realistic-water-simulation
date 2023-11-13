@@ -56,8 +56,8 @@ void draw_grid()
 
     SDL_SetRenderDrawColor(renderer,RGB_lines,RGB_lines,RGB_lines,SDL_ALPHA_TRANSPARENT);
     for (int i = 1; i<=(int)(width/smoothing_radius); i++) {
-        SDL_RenderDrawLine(renderer,smoothing_radius*i,0,smoothing_radius*i,height);
-        SDL_RenderDrawLine(renderer,0,smoothing_radius*i,width,smoothing_radius*i);
+        SDL_RenderDrawLine(renderer,smoothing_radius*i+x_left,y_up,smoothing_radius*i+x_left,y_down);
+        SDL_RenderDrawLine(renderer,x_left,smoothing_radius*i+y_up,x_right,smoothing_radius*i+y_up);
     }
 
 
@@ -78,7 +78,7 @@ void draw_grid()
 
 
     SDL_SetRenderDrawColor(renderer,RGB_lines,RGB_lines,RGB_lines,SDL_ALPHA_TRANSPARENT);
-    draw_rect(x_left2,y_up,x_right2-1,y_down-1);
+    draw_rect(x_left,y_up,x_right-1-x_left,y_down-1-y_up);
     draw_Cartesian_axes();
 
 }

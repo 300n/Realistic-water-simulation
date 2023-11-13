@@ -32,7 +32,43 @@ bool isPaused = false;
 
 
 
+void particleonttop()
+{
+    int maxheight, temp = 0;
+    for (int k = 0; k < numofseparation; k++) {
+        maxheight = height;
+        for (int i = 0; i<matlength; i++) {
+            for (int j = 0; j<matwidth; j++) {
+                if(particle_grid.data[i][j].position.x >= numofseparation*k && particle_grid.data[i][j].position.x <= numofseparation * (k+1) && particle_grid.data[i][j].position.y < maxheight) {
+                    maxheight = particle_grid.data[i][j].position.y;
+                    particle_grid.particle_on_top[temp] = i*matlength+j;
+                }   
+            }
+        }
+        temp++;
+    }
+}
 
+void align()
+{
+    int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+    SDL_SetRenderDrawColor(renderer,0,0,255,SDL_ALPHA_OPAQUE);
+    for (int k = 0; k < (numofseparation)-1; k++) {
+        x1 = particle_grid.particle_on_top[k] / matwidth;
+        x2 = particle_grid.particle_on_top[k+1] / matwidth;
+        y1 = particle_grid.particle_on_top[k] % matlength;
+        y2 = particle_grid.particle_on_top[k+1] % matlength;
+        if (particle_grid.particle_on_top[k] > 0 && x1 > 0 && x1 < particle_grid.MATlength && x2 > 0 && x2 < particle_grid.MATlength && y1 > 0 && y1 < particle_grid.MATwidth 
+        && y2 > 0 && y2 < particle_grid.MATwidth && particle_grid.data[x1][y1].position.x < particle_grid.data[x2][y2].position.x) {
+            SDL_RenderDrawLine(renderer,particle_grid.data[x1][y1].position.x,particle_grid.data[x1][y1].position.y,particle_grid.data[x2][y2].position.x,particle_grid.data[x2][y2].position.y);
+            square.x = particle_grid.data[x1][y1].position.x;
+            square.y = particle_grid.data[x1][y1].position.y;
+            square.w = 10;
+            square.h = 50;
+            SDL_RenderDrawRectF(renderer,&square);
+        }
+    }
+}
 
 double Eularian_distance(int i, int j, int k, int n)
 {
@@ -367,9 +403,11 @@ void Examine_Density(int x, int y)
 		for (int j = 0; j<particle_grid.MATwidth; j++) {
             particle_grid.data[i][j].color[0] = 0;
             q = sqrt(pow((particle_grid.data[i][j].position.x-x),2) + pow((particle_grid.data[i][j].position.y - y),2)) ;
-		
-            particle_grid.data[i][j].color[0] = 255;
-			double influence = Smoothing_Kernel(q);
+            if (q<=smoothing_radius) {
+                particle_grid.data[i][j].color[0] = 255;
+                 particle_grid.data[i][j].color[2] = 0;
+            }
+            double influence = Smoothing_Kernel(q);
 			density += m*influence;
 			
 		}
@@ -437,11 +475,11 @@ void particle_out_of_the_grid()
     for (int i = 0; i<particle_grid.MATlength; i++) { 
         for (int j = 0; j<particle_grid.MATwidth; j++) {
             O+=4;           
-            if (particle_grid.data[i][j].position.x<x_left2+pradius) {
-                particle_grid.data[i][j].position.x = x_left2+pradius;
+            if (particle_grid.data[i][j].position.x<x_left+pradius) {
+                particle_grid.data[i][j].position.x = x_left+pradius;
                 particle_grid.data[i][j].velocity.x *= DAMPING_COEFFICIENT;
-            } else if (particle_grid.data[i][j].position.x>x_right2-pradius) {    
-                particle_grid.data[i][j].position.x = x_right2-pradius;
+            } else if (particle_grid.data[i][j].position.x>x_right-pradius) {    
+                particle_grid.data[i][j].position.x = x_right-pradius;
                 particle_grid.data[i][j].velocity.x *= DAMPING_COEFFICIENT;
             }
             if (particle_grid.data[i][j].position.y<y_up+pradius) {
@@ -460,7 +498,6 @@ void update()
 /*mise à jour des positions de chaque particule*/
 {
     clear_grid();
-    draw_scale();
     if (!isPaused) {
         // Clear grid and draw initial grid
         draw_grid();
@@ -527,6 +564,24 @@ void update()
 
         particle_out_of_the_grid();
 
+        // double vitesse_max = INT_MIN, vitesse_min = INT_MAX;
+        // for (int i = 0 ; i < particle_grid.MATlength ; i++ ) {
+        //     for (int j = 0 ; j < particle_grid.MATlength ; j++) {
+        //         if (fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y) > vitesse_max) {
+        //             vitesse_max = fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y);
+        //         } else if (fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y) < vitesse_min) {
+        //             vitesse_min = fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y);
+        //         }
+        //     }
+        // }
+
+        // for (int i = 0 ; i < particle_grid.MATlength ; i++ ) {
+        //     for (int j = 0 ; j < particle_grid.MATlength ; j++) {
+        //         double vitesse_normalisee = ((fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y)) - vitesse_min) / vitesse_max - vitesse_min;
+        //         particle_grid.data[i][j].color[0] = 1 - vitesse_normalisee * 255;
+        //         particle_grid.data[i][j].color[2] = vitesse_normalisee * 255;
+        //     }
+        // }
 
 
         for (int i = 0 ; i < particle_grid.MATlength ; i++) {
@@ -544,37 +599,57 @@ void update()
                     // rect_texte.w = surface_texte->w;
                     // rect_texte.h = surface_texte->h;    
                     // SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-
                 }
                 particle_grid.data[i][j].color[0] = 0;
                 particle_grid.data[i][j].color[1] = 0;
                 particle_grid.data[i][j].color[2] = 255;
-
+                
             }
+        }
+
+
+        if (particle_visible == -1) {
+            particleonttop();
+            align();
         }
     }
 }
 
 
 
-void shockwave(){
+void rightshift() 
+{
     int timeout = SDL_GetTicks64() + 1000; 
     while (SDL_GetTicks64() < timeout){
         update();
         SDL_RenderPresent(renderer);
-        x_left2+=10;
-        x_right2+= 10;
+        x_left += 10;
+        x_right += 10;
     }
-    while (x_left2>x_left){
+    while (x_right>width){
         update();
         SDL_RenderPresent(renderer);
-        x_left2-= 5;
-        x_right2-= 5;
+        x_left -= 10;
+        x_right -= 10;
     }
-    x_left2= x_left;
-    x_right2= x_right;
 }
 
+void upshift()
+{
+    int timeout = SDL_GetTicks64() + 1000;
+    while (SDL_GetTicks64() < timeout){
+        update();
+        SDL_RenderPresent(renderer);
+        y_up -= 10;
+        y_down -= 10;
+    }
+    while (y_down<height){
+        update();
+        SDL_RenderPresent(renderer);
+        y_up += 10;
+        y_down += 10;
+    }
+}
 
 
 
@@ -607,42 +682,32 @@ void aff()
             
                     if (Event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
                         running = 0;
-                    }
-                    if (Event.key.keysym.scancode == SDL_SCANCODE_SPACE) {
+                    } else if (Event.key.keysym.scancode == SDL_SCANCODE_SPACE) {
                         isPaused = !isPaused;
-                    }
-                    if (Event.key.keysym.scancode == SDL_SCANCODE_F5) {
+                    } else if (Event.key.keysym.scancode == SDL_SCANCODE_F5) {
                         goto restart;
-                    }
-                    if (Event.key.keysym.scancode == SDL_SCANCODE_RIGHT) {
+                    } else if (Event.key.keysym.scancode == SDL_SCANCODE_RIGHT) {
                         dt = 1/(FPS*10)*5;
                         for (int i = 0; i<10; i++) {
                             update();
                         }
-                        dt = 1/(FPS/10);
-                    }
-                    if (Event.key.keysym.scancode == SDL_SCANCODE_LEFT) {
+                    } else if (Event.key.keysym.scancode == SDL_SCANCODE_LEFT) {
                         dt = -1/(FPS/10)*5;
                         for (int i = 0; i<10; i++) {
                             update();
                         }
-                        dt = 1/(FPS/10);
-                    }
-
-                    if (Event.key.keysym.scancode == SDL_SCANCODE_I ){
+                    } else if (Event.key.keysym.scancode == SDL_SCANCODE_I ){
                         Colorflipped();
-                    }
-                    if (Event.key.keysym.scancode == SDL_SCANCODE_R) {
+                    } else if (Event.key.keysym.scancode == SDL_SCANCODE_R) {
                         reset_const();
-                    }
-                    if (Event.key.keysym.scancode == SDL_SCANCODE_S) {
+                    } else if (Event.key.keysym.scancode == SDL_SCANCODE_S) {
                         particle_visible*=-1;
-                    }
-                    if (Event.key.keysym.scancode == SDL_SCANCODE_C) {
+                    } else if (Event.key.keysym.scancode == SDL_SCANCODE_C) {
                         choice *= -1;
-                    }
-                    if (Event.key.keysym.scancode == SDL_SCANCODE_G) {
-                        shockwave();
+                    } else if (Event.key.keysym.scancode == SDL_SCANCODE_G) {
+                        rightshift();
+                    } else if (Event.key.keysym.scancode == SDL_SCANCODE_H) {
+                        upshift();
                     }
                     break;
                 case SDL_WINDOWEVENT_SIZE_CHANGED:
@@ -748,15 +813,17 @@ void aff()
                             }*/
                         } else if (Event.button.button == SDL_BUTTON_RIGHT) {
 
-                            // if (Sample_point.x > 0 && Sample_point.x < width+500 && Sample_point.y > 0 && Sample_point.y < height) {
-                            //         SDL_GetMouseState(&Sample_point.x, &Sample_point.y);
-                            //         Visualize_Density();
-                            //     while (Event.type != SDL_MOUSEBUTTONUP) {
-                            //         SDL_PollEvent(&Event);
-                            //     }
-                            // }
+                            if (Sample_point.x > 0 && Sample_point.x < width+500 && Sample_point.y > 0 && Sample_point.y < height) {
+                                    SDL_GetMouseState(&mousex, &mousey);
+                                    Sample_point.x = mousex;
+                                    Sample_point.y = mousey;
+                                    Visualize_Density();
+                                while (Event.type != SDL_MOUSEBUTTONUP) {
+                                    SDL_PollEvent(&Event);
+                                }
+                            }
 
-                            color_particle_concerned(Sample_point);
+                            // color_particle_concerned(Sample_point);
                             update();
 
 
@@ -783,8 +850,10 @@ void aff()
         end_time = SDL_GetTicks();
         fflush(stdout);
         stat_aff(1000/((double)elapsed_time+0.0001));
+        draw_scale();
         elapsed_time = end_time - start_time;
-        // printf("dt = %lf\n", dt);
+
+
         if (!isPaused) {
             SDL_RenderPresent(renderer);
             SDL_UpdateWindowSurface(window);

@@ -14,23 +14,20 @@
 
 #define matwidth 40
 #define matlength 40
-#define width 1600
+#define width 1200
 #define height 1000
 #define widthstats 525
 #define widthscale 295
 #define pradius 5
 
-#define x_right width
-#define x_left 0
-#define y_up 0
-#define y_down height
+int x_right = width;
+int x_left = 0;
+int y_up = 0;
+int y_down = height;
 
 #define DAMPING_COEFFICIENT 0.9
 
-float x_left2 =0;
-float y_up2 =0;
-float y_down2 = height;
-float x_right2= width ;
+
 
 
 
@@ -80,7 +77,7 @@ int yk = height/4+height/20+((height/4-height/10)/5)*4;
 double near_pressure_multiplier = 1;
 
 
-int const numofseparation = (width)/matwidth;
+int const numofseparation = 50;
 int particle_visible = 1;
 int z = 0;
 
