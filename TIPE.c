@@ -61,11 +61,6 @@ void align()
         if (particle_grid.particle_on_top[k] > 0 && x1 > 0 && x1 < particle_grid.MATlength && x2 > 0 && x2 < particle_grid.MATlength && y1 > 0 && y1 < particle_grid.MATwidth 
         && y2 > 0 && y2 < particle_grid.MATwidth && particle_grid.data[x1][y1].position.x < particle_grid.data[x2][y2].position.x) {
             SDL_RenderDrawLine(renderer,particle_grid.data[x1][y1].position.x,particle_grid.data[x1][y1].position.y,particle_grid.data[x2][y2].position.x,particle_grid.data[x2][y2].position.y);
-            square.x = particle_grid.data[x1][y1].position.x;
-            square.y = particle_grid.data[x1][y1].position.y;
-            square.w = 10;
-            square.h = 50;
-            SDL_RenderDrawRectF(renderer,&square);
         }
     }
 }
@@ -378,18 +373,21 @@ Vect2D Mouse_force(Vect2D inputPos, int k ,int n, double strength)
     offset.y = inputPos.y - particle_grid.data[k][n].position.y;
     double q = sqrt(pow(offset.x,2)+pow(offset.y,2));
 
-    if (q <= smoothing_radius) {
+    if (q <= smoothing_radius*2) {
         Vect2D dir_to_input_force = Vect2D_zero();
         if (q >= FLT_EPSILON) {
             dir_to_input_force.x = offset.x / q;
             dir_to_input_force.y = offset.y / q;
         }
-        double centreT = 1 - q / smoothing_radius;
+        double centreT = 1 - q / smoothing_radius*2;
         interaction_Force.x = (dir_to_input_force.x * strength - particle_grid.data[k][n].velocity.x) * centreT;
         interaction_Force.y = (dir_to_input_force.y * strength - particle_grid.data[k][n].velocity.y) * centreT;
     }
     return interaction_Force;
 }
+
+
+
 
 void Examine_Density(int x, int y)
 {
@@ -493,7 +491,6 @@ void particle_out_of_the_grid()
     }
 }
 
-
 void update()   
 /*mise à jour des positions de chaque particule*/
 {
@@ -574,7 +571,6 @@ void update()
         //         }
         //     }
         // }
-
         // for (int i = 0 ; i < particle_grid.MATlength ; i++ ) {
         //     for (int j = 0 ; j < particle_grid.MATlength ; j++) {
         //         double vitesse_normalisee = ((fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y)) - vitesse_min) / vitesse_max - vitesse_min;
@@ -614,8 +610,6 @@ void update()
         }
     }
 }
-
-
 
 void rightshift() 
 {
@@ -734,8 +728,8 @@ void aff()
                                 Sample_point.y = mousey;
                                 Vect2D SampleCell = Vect2D_cpy(Position_to_Cell(Sample_point));
                                 // Parcours le 3x3 autour de la case d'origine
-                                for (int i = SampleCell.x - 1; i <= SampleCell.x + 1; i++) {
-                                    for (int j = SampleCell.y - 1; j <= SampleCell.y + 1; j++) {
+                                for (int i = SampleCell.x - 3; i <= SampleCell.x + 3; i++) {
+                                    for (int j = SampleCell.y - 3; j <= SampleCell.y + 3; j++) {
                                         int key = Get_Key_from_Hash(HashCell(i,j));
                                         int cellStartIndex = start_indices[key];
                                         for (int l = cellStartIndex; l<particle_grid.MATlength*particle_grid.MATwidth; l++) {
@@ -743,12 +737,13 @@ void aff()
                                             O++;
                                             int particle_Index = Spatial_Lookup[l].index;
 
-                                            particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].color[0] = 255;
+                                            // particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].color[0] = 255;
 
                                             if (Event.button.button == SDL_BUTTON_LEFT) {
-                                                Mouse_force(Sample_point,particle_Index/particle_grid.MATlength,particle_Index%particle_grid.MATlength,-1);
-                                            } else if (Event.button.button == SDL_BUTTON_RIGHT) {
-                                                Mouse_force(Sample_point,particle_Index/particle_grid.MATlength,particle_Index%particle_grid.MATlength,1);
+                                                // printf("O = %d\n\t", O);
+                                                particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].velocity = Vect2D_add(particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].velocity,  Mouse_force(Sample_point,particle_Index/particle_grid.MATlength,particle_Index%particle_grid.MATlength,-200));
+                                            } else if (Event.button.button == SDL_BUTTON_RIGHT) {   
+                                                particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].velocity = Vect2D_add(particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].velocity,  Mouse_force(Sample_point,particle_Index/particle_grid.MATlength,particle_Index%particle_grid.MATlength,200));
                                             }
                                         }
 
@@ -756,13 +751,17 @@ void aff()
                                 }
 
                                 update();
+                                SDL_SetRenderDrawColor(renderer,255,255,255,SDL_ALPHA_OPAQUE);
+                                dessinerCercle(mousex,mousey,smoothing_radius*2);
+                                dessinerCercle(mousex,mousey,smoothing_radius*2-1);
+                                dessinerCercle(mousex,mousey,smoothing_radius*2-2);
                                 end_time = SDL_GetTicks();
                                 elapsed_time = end_time - start_time;
                                 stat_aff(1000/elapsed_time);
                                 SDL_RenderPresent(renderer);
                                 SDL_UpdateWindowSurface(window);
 
-
+                                SDL_Delay(10);
                                 SDL_PollEvent(&Event);
                             }
                         } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40 && Sample_point.y<(height/4+height/20+height/400)+height/100) {
@@ -776,10 +775,13 @@ void aff()
                             xm = Sample_point.x;
                         } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*3 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*1.5) {
                             target_density = 0.01*(Sample_point.x-width-width/30)/(width/6);
-                            x_coeff_visco = Sample_point.x;
-                        }else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*4 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*2.5) {
+                            x_tdens = Sample_point.x;
+                        } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*4 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*2.5) {
                             pressure_multiplier = 100000*(Sample_point.x-width-width/30)/(width/6);
                             xk = Sample_point.x;
+                        } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*5 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*3.5) {
+                                viscosity_strength = 10*(Sample_point.x-width-width/30)/(width/6);
+                                x_vs = Sample_point.x;
                         }
 
 
@@ -802,15 +804,14 @@ void aff()
                                 xm = Sample_point.x;
                             } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*3 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*1.5) {
                                 target_density = 0.01*(Sample_point.x-width-width/30)/(width/6);
-                                x_coeff_visco = Sample_point.x;
-                            }else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*4 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*2.5) {
+                                x_tdens = Sample_point.x;
+                            } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*4 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*2.5) {
                                 pressure_multiplier = 200000*(Sample_point.x-width-width/30)/(width/6);
                                 xk = Sample_point.x;
-                            }/* else if (Sample_point.x>x_left && Sample_point.x<x_right && Sample_point.y> y_up && Sample_point.y<y_down) {
-                                 SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-                                 drawCircle(Sample_point.x,Sample_point.y,20);
-                                 SDL_RenderPresent(renderer);
-                            }*/
+                            } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*5 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*3.5) {
+                                viscosity_strength = 10*(Sample_point.x-width-width/30)/(width/6);
+                                x_vs = Sample_point.x;
+                            }
                         } else if (Event.button.button == SDL_BUTTON_RIGHT) {
 
                             if (Sample_point.x > 0 && Sample_point.x < width+500 && Sample_point.y > 0 && Sample_point.y < height) {

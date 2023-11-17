@@ -65,8 +65,8 @@ int ym = height/4+height/20+((height/4-height/10)/5)*2;
 
 double const t_dens = 0.0035  /*(double) (matwidth * matlength) / (width * height)*/ ; 
 double target_density = t_dens; // target density
-int x_coeff_visco = width+widthstats/30*2;
-int y_coeff_visco = height/4+height/20+((height/4-height/10)/5)*3;
+int x_tdens = width+widthstats/30*2;
+int y_tdens = height/4+height/20+((height/4-height/10)/5)*3;
 
 
 double const k = 200000; 
@@ -81,8 +81,10 @@ int const numofseparation = 50;
 int particle_visible = 1;
 int z = 0;
 
-
-double const viscosity_strength = 0.5;
+double const viscosity_strength_const = 0.5;
+double viscosity_strength = viscosity_strength_const;
+int x_vs = width+widthstats/30*2+widthstats/4;
+int y_vs = height/4+height/20+((height/4-height/10)/5)*5;
 
 const double pi = 3.1415926535;
 const double g = 9.80665;
@@ -286,12 +288,15 @@ void reset_const()
     m = mconst;
     FPS = FPSconst;
     target_density = t_dens;
+    viscosity_strength = viscosity_strength_const;
 
     xk = width+widthstats/30*2+widthstats/4;
     xh = width+widthstats/30*2+widthstats/4;
     xm = width+widthstats/30*2;
     xFPS = width+widthstats/30*2+widthstats/4;
-    x_coeff_visco = width+widthstats/30*2;
+    x_tdens = width+widthstats/30*2;
+    x_vs = width+widthstats/30*2+widthstats/4;
+
 }
 
 
@@ -308,6 +313,14 @@ Vect2D Vect2D_cpy(Vect2D input)
     Vect2D out;
     out.x = input.x;
     out.y = input.y;
+    return out;
+}
+
+Vect2D Vect2D_add(Vect2D a, Vect2D b)
+{
+    Vect2D out;
+    out.x = a.x + b.x;
+    out.y = a.y + b.y;
     return out;
 }
 
