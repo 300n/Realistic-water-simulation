@@ -19,7 +19,6 @@
 #define widthstats 525
 #define widthscale 295
 #define pradius 5
-
 int x_right = width;
 int x_left = 0;
 int y_up = 0;
@@ -91,6 +90,9 @@ const double g = 9.80665;
 
 static const Uint32 hashK1 = 15823;
 static const Uint32 hashK2 = 9737333;
+
+
+double mouse_force = 50;
 
 typedef struct {
     double x,y;

@@ -380,8 +380,8 @@ Vect2D Mouse_force(Vect2D inputPos, int k ,int n, double strength)
             dir_to_input_force.y = offset.y / q;
         }
         double centreT = 1 - q / smoothing_radius*2;
-        interaction_Force.x = (dir_to_input_force.x * strength - particle_grid.data[k][n].velocity.x) * centreT;
-        interaction_Force.y = (dir_to_input_force.y * strength - particle_grid.data[k][n].velocity.y) * centreT;
+        interaction_Force.x = (dir_to_input_force.x * strength ) * centreT;
+        interaction_Force.y = (dir_to_input_force.y * strength) * centreT;
     }
     return interaction_Force;
 }
@@ -491,13 +491,36 @@ void particle_out_of_the_grid()
     }
 }
 
+void affichage()
+{
+    clear_grid();
+    draw_grid();    
+    for (int i = 0 ; i < particle_grid.MATlength ; i++) {
+        for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
+            SDL_SetRenderDrawColor(renderer, particle_grid.data[i][j].color[0], particle_grid.data[i][j].color[1], particle_grid.data[i][j].color[2], SDL_ALPHA_OPAQUE);
+            if (particle_visible == 1) {
+                drawCircle(particle_grid.data[i][j].position.x,particle_grid.data[i][j].position.y,pradius);
+                // sprintf(texte, "%d", i*particle_grid.MATlength+j);
+                // surface_texte = TTF_RenderText_Blended(smallfont, texte, white);
+                // texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+                // rect_texte.x = particle_grid.data[i][j].position.x;
+                // rect_texte.y = particle_grid.data[i][j].position.y;
+                // rect_texte.w = surface_texte->w;
+                // rect_texte.h = surface_texte->h;    
+                // SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+            }            
+        }
+    }
+    if (particle_visible == -1) {
+            particleonttop();
+            align();
+    }
+}
+
 void update()   
 /*mise à jour des positions de chaque particule*/
 {
-    clear_grid();
     if (!isPaused) {
-        // Clear grid and draw initial grid
-        draw_grid();
 
         // Set render color to blue
         SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
@@ -556,58 +579,47 @@ void update()
             for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
 	    		particle_grid.data[i][j].position.x += particle_grid.data[i][j].velocity.x*dt;
                 particle_grid.data[i][j].position.y += particle_grid.data[i][j].velocity.y*dt;
+                // printf("particle_grid.data[i][j].velocity.x = %lf && particle_grid.data[i][j].velocity.y = %lf\n", fabs(particle_grid.data[i][j].velocity.x), fabs(particle_grid.data[i][j].velocity.y));
 	    	}
 	    }
 
         particle_out_of_the_grid();
 
-        // double vitesse_max = INT_MIN, vitesse_min = INT_MAX;
-        // for (int i = 0 ; i < particle_grid.MATlength ; i++ ) {
-        //     for (int j = 0 ; j < particle_grid.MATlength ; j++) {
-        //         if (fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y) > vitesse_max) {
-        //             vitesse_max = fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y);
-        //         } else if (fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y) < vitesse_min) {
-        //             vitesse_min = fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y);
-        //         }
-        //     }
-        // }
-        // for (int i = 0 ; i < particle_grid.MATlength ; i++ ) {
-        //     for (int j = 0 ; j < particle_grid.MATlength ; j++) {
-        //         double vitesse_normalisee = ((fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y)) - vitesse_min) / vitesse_max - vitesse_min;
-        //         particle_grid.data[i][j].color[0] = 1 - vitesse_normalisee * 255;
-        //         particle_grid.data[i][j].color[2] = vitesse_normalisee * 255;
-        //     }
-        // }
-
-
-        for (int i = 0 ; i < particle_grid.MATlength ; i++) {
-            for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
-                SDL_SetRenderDrawColor(renderer, particle_grid.data[i][j].color[0], particle_grid.data[i][j].color[1], particle_grid.data[i][j].color[2], SDL_ALPHA_OPAQUE);
-                if (particle_visible == 1) {
-                    drawCircle(particle_grid.data[i][j].position.x,particle_grid.data[i][j].position.y,pradius);
-
-
-                    // sprintf(texte, "%d", i*particle_grid.MATlength+j);
-                    // surface_texte = TTF_RenderText_Blended(smallfont, texte, white);
-                    // texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-                    // rect_texte.x = particle_grid.data[i][j].position.x;
-                    // rect_texte.y = particle_grid.data[i][j].position.y;
-                    // rect_texte.w = surface_texte->w;
-                    // rect_texte.h = surface_texte->h;    
-                    // SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+        double vitesse_max = INT_MIN, vitesse_min = INT_MAX;
+        for (int i = 0 ; i < particle_grid.MATlength ; i++ ) {
+            for (int j = 0 ; j < particle_grid.MATlength ; j++) {
+                if (particle_grid.data[i][j].position.x < x_right - pradius && particle_grid.data[i][j].position.x > x_left + pradius && 
+                particle_grid.data[i][j].position.y > y_up + pradius && particle_grid.data[i][j].position.y < y_down - pradius) {
+                    if (fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y) > vitesse_max) {
+                        vitesse_max = fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y);
+                    } else if (fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y) < vitesse_min) {
+                        vitesse_min = fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y);
+                    }
                 }
-                particle_grid.data[i][j].color[0] = 0;
-                particle_grid.data[i][j].color[1] = 0;
-                particle_grid.data[i][j].color[2] = 255;
-                
             }
         }
 
 
-        if (particle_visible == -1) {
-            particleonttop();
-            align();
+        
+        for (int i = 0 ; i < particle_grid.MATlength ; i++ ) {
+            for (int j = 0 ; j < particle_grid.MATlength ; j++) {
+                double vitesse_normalisee = ((fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y))) / vitesse_max;
+                // printf("vitesse_normalisee = %lf && vitesse_max = %lf && vitess_part = %lf\n", vitesse_normalisee, vitesse_max,(fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y)));
+                
+                if (particle_grid.data[i][j].position.x < x_right - pradius && particle_grid.data[i][j].position.x > x_left + pradius && 
+                particle_grid.data[i][j].position.y > y_up + pradius && particle_grid.data[i][j].position.y < y_down - pradius) {
+                    particle_grid.data[i][j].color[0] = vitesse_normalisee * 255;
+                    particle_grid.data[i][j].color[1] = 0;
+                    particle_grid.data[i][j].color[2] = (1 - vitesse_normalisee) * 255;
+                } else {
+                    particle_grid.data[i][j].color[0] = 0;
+                    particle_grid.data[i][j].color[1] = 0;
+                    particle_grid.data[i][j].color[2] = 255;
+                }
+            }
         }
+
+        affichage();
     }
 }
 
@@ -685,7 +697,7 @@ void aff()
                         for (int i = 0; i<10; i++) {
                             update();
                         }
-                    } else if (Event.key.keysym.scancode == SDL_SCANCODE_LEFT) {
+                    } else if (Event.key.keysym.scancode == SDL_SCANCODE_LEFT) {                                                //
                         dt = -1/(FPS/10)*5;
                         for (int i = 0; i<10; i++) {
                             update();
@@ -716,52 +728,54 @@ void aff()
                 default:
                     break;
                 case SDL_MOUSEBUTTONDOWN:
-                    Vect2D Sample_point;
+                    Vect2D Sample_point = Vect2D_zero();
                     SDL_GetMouseState(&mousex,&mousey);
                     Sample_point.x = mousex;
                     Sample_point.y = mousey;
                     if (choice == 1) {
                         if (Sample_point.x > 0 && Sample_point.x < width && Sample_point.y > 0 && Sample_point.y < height) {
                             while (Event.type != SDL_MOUSEBUTTONUP) {
-                                SDL_GetMouseState(&mousex,&mousey);
+                                if (Event.button.button == SDL_BUTTON_LEFT) {
+                                    // printf("Left\n");
+                                    if (mouse_force > 0) { mouse_force *= -1; }
+                                } else if (Event.button.button == SDL_BUTTON_RIGHT) {
+                                    // printf("Right\n");
+                                    if (mouse_force < 0) { mouse_force *= -1; }
+                                } 
+                                if (Event.type == SDL_MOUSEMOTION) {SDL_GetMouseState(&mousex,&mousey);}
+
+
                                 Sample_point.x = mousex;
                                 Sample_point.y = mousey;
+                                // printf("Sample_point.x = %lf && Sample_point.y = %lf\n", Sample_point.x, Sample_point.y);
                                 Vect2D SampleCell = Vect2D_cpy(Position_to_Cell(Sample_point));
                                 // Parcours le 3x3 autour de la case d'origine
-                                for (int i = SampleCell.x - 3; i <= SampleCell.x + 3; i++) {
-                                    for (int j = SampleCell.y - 3; j <= SampleCell.y + 3; j++) {
+                                for (int i = SampleCell.x - 2; i <= SampleCell.x + 2; i++) {
+                                    for (int j = SampleCell.y - 2; j <= SampleCell.y + 2; j++) {
                                         int key = Get_Key_from_Hash(HashCell(i,j));
                                         int cellStartIndex = start_indices[key];
                                         for (int l = cellStartIndex; l<particle_grid.MATlength*particle_grid.MATwidth; l++) {
                                             if (Spatial_Lookup[l].value != key) { break; }
                                             O++;
                                             int particle_Index = Spatial_Lookup[l].index;
-
                                             // particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].color[0] = 255;
-
-                                            if (Event.button.button == SDL_BUTTON_LEFT) {
-                                                // printf("O = %d\n\t", O);
-                                                particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].velocity = Vect2D_add(particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].velocity,  Mouse_force(Sample_point,particle_Index/particle_grid.MATlength,particle_Index%particle_grid.MATlength,-200));
-                                            } else if (Event.button.button == SDL_BUTTON_RIGHT) {   
-                                                particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].velocity = Vect2D_add(particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].velocity,  Mouse_force(Sample_point,particle_Index/particle_grid.MATlength,particle_Index%particle_grid.MATlength,200));
-                                            }
+                                            particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].velocity = Vect2D_add(particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].velocity,  Mouse_force(Sample_point,particle_Index/particle_grid.MATlength,particle_Index%particle_grid.MATlength,mouse_force));
                                         }
-
                                     }
                                 }
+                            
 
                                 update();
+                                
+
                                 SDL_SetRenderDrawColor(renderer,255,255,255,SDL_ALPHA_OPAQUE);
-                                dessinerCercle(mousex,mousey,smoothing_radius*2);
-                                dessinerCercle(mousex,mousey,smoothing_radius*2-1);
-                                dessinerCercle(mousex,mousey,smoothing_radius*2-2);
-                                end_time = SDL_GetTicks();
-                                elapsed_time = end_time - start_time;
-                                stat_aff(1000/elapsed_time);
+                                dessinerCercle(Sample_point.x,Sample_point.y,smoothing_radius*2);
+                                // end_time = SDL_GetTicks();
+                                // elapsed_time = end_time - start_time;
+                                // stat_aff(1000/(elapsed_time+0.0001));
                                 SDL_RenderPresent(renderer);
                                 SDL_UpdateWindowSurface(window);
-
-                                SDL_Delay(10);
+                                // printf("O = %d\n", O);
                                 SDL_PollEvent(&Event);
                             }
                         } else if (Sample_point.x>(width+widthstats/30*2) && Sample_point.x<(width+widthstats/30*2+widthstats/2) && Sample_point.y>(height/4+height/20)-height/40 && Sample_point.y<(height/4+height/20+height/400)+height/100) {
