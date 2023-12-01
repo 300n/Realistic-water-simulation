@@ -179,7 +179,7 @@ void stat_aff(int fps)
     sprintf(texte, "FPS : %d", fps);
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.x = width+30;
+    rect_texte.x = x_right-widthstats+widthstats/15;
     rect_texte.y = (width/40)+10;
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;

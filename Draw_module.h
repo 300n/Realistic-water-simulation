@@ -53,13 +53,14 @@ void draw_Cartesian_axes()
 
 void draw_grid()
 {
-
-    SDL_SetRenderDrawColor(renderer,RGB_lines,RGB_lines,RGB_lines,SDL_ALPHA_TRANSPARENT);
-    for (int i = 1; i<=(int)(width/smoothing_radius); i++) {
-        SDL_RenderDrawLine(renderer,smoothing_radius*i+x_left,y_up,smoothing_radius*i+x_left,y_down);
-    }
-    for (int i = 1; i<=(int)(height/smoothing_radius); i++) {
-        SDL_RenderDrawLine(renderer,x_left,smoothing_radius*i+y_up,x_right,smoothing_radius*i+y_up);
+    if (stat_visual_status) {
+        SDL_SetRenderDrawColor(renderer,RGB_lines,RGB_lines,RGB_lines,SDL_ALPHA_TRANSPARENT);
+        for (int i = 1; i<=(int)((x_right-x_left)/smoothing_radius); i++) {
+            SDL_RenderDrawLine(renderer,smoothing_radius*i+x_left,y_up,smoothing_radius*i+x_left,y_down);
+        }
+        for (int i = 1; i<=(int)((y_down-y_up)/smoothing_radius); i++) {
+            SDL_RenderDrawLine(renderer,x_left,smoothing_radius*i+y_up,x_right,smoothing_radius*i+y_up);
+        }
     }
     // for (int i = 0; i<(int)width/smoothing_radius; i++) {
     //     for (int j = 0; j<(int)height/smoothing_radius; j++) {
@@ -106,7 +107,7 @@ void dessinerCercle(int x, int y, int rayon) {
 
 void drawstatgrid()
 {
-    draw_rect(width+widthstats/30,height/40,widthstats-widthstats/15,height/4-height/40);    
+    draw_rect(x_right-widthstats,height/40,widthstats-widthstats/15,height/4-height/40);    
 }
 
 void clear_grid()
@@ -119,8 +120,8 @@ void clear_grid()
     } 
     square.x = 0;
     square.y = 0;
-    square.h = height;
-    square.w = width+widthstats+widthscale;
+    square.h = (y_down - y_up);
+    square.w = (x_right - x_left);
     SDL_RenderFillRect(renderer,&square);
 }
 
@@ -225,14 +226,16 @@ void draw_scale()
 {
     SDL_Rect bar;
     
+    
+
     SDL_SetRenderDrawColor(renderer, RGB_background, RGB_background, RGB_background, SDL_ALPHA_OPAQUE);
-    draw_rect(width+widthstats/30, height/4+height/40, widthstats-widthstats/15, height/4-height/40);
-    bar.x = width+widthstats/30*2;
+    draw_rect(x_right-widthstats, height/4+height/40, widthstats-widthstats/15, height/4-height/40);
+    bar.x = x_right-widthstats+widthstats/15;
     bar.y = height/4+height/20;
     bar.w = widthstats/2;
     bar.h = height/400;
     SDL_RenderFillRect(renderer,&bar);
-    
+    double x_dot = x_right-widthstats + widthstats / 15 + bar.w / 2;
 
     rect_texte.x = bar.x+bar.w+widthstats/16+widthstats/100;
     rect_texte.y = bar.y-bar.h*6;
@@ -242,7 +245,7 @@ void draw_scale()
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(xFPS,yFPS,7);
+    drawCircle(x_dot,yFPS,7);
     draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
 
 
@@ -256,7 +259,7 @@ void draw_scale()
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(xh,yh,7);
+    drawCircle(x_dot,yh,7);
     draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
 
     bar.y += (height/4-height/10)/5;
@@ -268,7 +271,7 @@ void draw_scale()
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(xm,ym,7);
+    drawCircle(x_dot,ym,7);
     draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
 
 
@@ -281,7 +284,7 @@ void draw_scale()
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(x_tdens,y_tdens,7);
+    drawCircle(x_dot,y_tdens,7);
     draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
 
 
@@ -294,7 +297,7 @@ void draw_scale()
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(xk,yk,7);
+    drawCircle(x_dot,yk,7);
     draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
 
     bar.y += (height/4-height/10)/5;
@@ -306,7 +309,7 @@ void draw_scale()
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(x_vs,y_vs,7);
+    drawCircle(x_dot,y_vs,7);
     draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
 
 

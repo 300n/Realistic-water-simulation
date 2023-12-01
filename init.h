@@ -19,7 +19,7 @@
 #define widthstats 525
 #define widthscale 295
 #define pradius 5
-int x_right = width;
+int x_right = width+widthstats;
 int x_left = 0;
 int y_up = 0;
 int y_down = height;
@@ -93,6 +93,7 @@ static const Uint32 hashK2 = 9737333;
 
 
 double mouse_force = 50;
+bool stat_visual_status = true;
 
 typedef struct {
     double x,y;
@@ -147,7 +148,7 @@ void initSDL()
 /*initialise SDL*/
 {
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_CreateWindowAndRenderer(width+widthstats, height, 0, &window, &renderer);
+    SDL_CreateWindowAndRenderer(width+widthstats, height, SDL_WINDOW_RESIZABLE, &window, &renderer);
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
 }
 
@@ -194,8 +195,8 @@ void initmat()
         for (int j = 0; j<particle_grid.MATwidth; j++) {
             // particle_grid.data[i][j].position.x = (rand() %(x_right-x_left))+x_left;;
             // particle_grid.data[i][j].position.y = (rand() %(y_down-y_up))+y_up;; 
-            particle_grid.data[i][j].position.x = (width-matlength*2*1.5*pradius)/2+i*pradius*2*1.5;
-            particle_grid.data[i][j].position.y = (height-matwidth*2*1.5*pradius)/2+j*pradius*2*1.5;
+            particle_grid.data[i][j].position.x = ((x_right-x_left)-matlength*2*1.5*pradius)/2+i*pradius*2*1.5;
+            particle_grid.data[i][j].position.y = ((y_down-y_up)-matwidth*2*1.5*pradius)/2+j*pradius*2*1.5;
 
 
             particle_grid.data[i][j].velocity.x = 0;
