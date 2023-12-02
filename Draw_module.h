@@ -113,15 +113,10 @@ void drawstatgrid()
 void clear_grid()
 {
     SDL_SetRenderDrawColor(renderer,RGB_background,RGB_background,RGB_background,SDL_ALPHA_OPAQUE);
-    for (int i = 0; i<matlength; i++) {
-        for (int j = 0; j<matwidth; j++) {
-            SDL_RenderDrawPoint(renderer, particle_grid.data[i][j].position.x,particle_grid.data[i][j].position.y);
-        }
-    } 
     square.x = 0;
     square.y = 0;
     square.h = (y_down - y_up);
-    square.w = (x_right - x_left);
+    square.w = (x_right - x_left)+200;
     SDL_RenderFillRect(renderer,&square);
 }
 
@@ -235,7 +230,7 @@ void draw_scale()
     bar.w = widthstats/2;
     bar.h = height/400;
     SDL_RenderFillRect(renderer,&bar);
-    double x_dot = x_right-widthstats + widthstats / 15 + bar.w / 2;
+    double x_dot = x_right-widthstats + widthstats / 15;
 
     rect_texte.x = bar.x+bar.w+widthstats/16+widthstats/100;
     rect_texte.y = bar.y-bar.h*6;
@@ -245,7 +240,7 @@ void draw_scale()
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(x_dot,yFPS,7);
+    drawCircle(x_dot + bar.w * FPS/FPS_MAX,yFPS,7);
     draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
 
 
@@ -259,7 +254,7 @@ void draw_scale()
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(x_dot,yh,7);
+    drawCircle(x_dot + bar.w * smoothing_radius / smoothing_radius_MAX,yh,7);
     draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
 
     bar.y += (height/4-height/10)/5;
@@ -271,7 +266,7 @@ void draw_scale()
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(x_dot,ym,7);
+    drawCircle(x_dot + bar.w * m / mass_MAX,ym,7);
     draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
 
 
@@ -284,7 +279,7 @@ void draw_scale()
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(x_dot,y_tdens,7);
+    drawCircle(x_dot + bar.w * target_density / target_density_MAX,y_tdens,7);
     draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
 
 
@@ -297,7 +292,7 @@ void draw_scale()
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(x_dot,yk,7);
+    drawCircle(x_dot + bar.w * pressure_multiplier / pressure_multiplier_MAX,yk,7);
     draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
 
     bar.y += (height/4-height/10)/5;
@@ -309,7 +304,7 @@ void draw_scale()
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(x_dot,y_vs,7);
+    drawCircle(x_dot + bar.w * viscosity_strength / viscosity_strength_MAX,y_vs,7);
     draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
 
 

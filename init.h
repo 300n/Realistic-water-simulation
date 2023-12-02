@@ -15,7 +15,7 @@
 #define matwidth 40
 #define matlength 40
 #define width 1200
-#define height 1000
+#define height 1015
 #define widthstats 525
 #define widthscale 295
 #define pradius 5
@@ -49,28 +49,28 @@ int numof_particle_added = 0;
 
 double const FPSconst = 20; // nombre d'image par seconde 
 double FPS = FPSconst;
-int xFPS = width+widthstats/30*2+widthstats/4;
+int FPS_MAX = 240;
 int yFPS = height/4+height/20;
 
 double const h = 35; // rayon kernel
 double smoothing_radius = h;
-int xh = width+widthstats/30*2+widthstats/4;
+double smoothing_radius_MAX = 200;
 int yh = height/4+height/20+(height/4-height/10)/5;
 
 double const mconst = 1; // masse de chaque particule
 double m = mconst;
-int xm = width+widthstats/30*2;
+double mass_MAX = 20;
 int ym = height/4+height/20+((height/4-height/10)/5)*2;
 
 double const t_dens = 0.0035  /*(double) (matwidth * matlength) / (width * height)*/ ; 
 double target_density = t_dens; // target density
-int x_tdens = width+widthstats/30*2;
+double target_density_MAX = 0.01;
 int y_tdens = height/4+height/20+((height/4-height/10)/5)*3;
 
 
 double const k = 200000; 
 double pressure_multiplier = k; 
-int xk = width+widthstats/30*2+widthstats/4;
+double pressure_multiplier_MAX = 400000;
 int yk = height/4+height/20+((height/4-height/10)/5)*4;
 
 double near_pressure_multiplier = 1;
@@ -82,7 +82,7 @@ int z = 0;
 
 double const viscosity_strength_const = 0.5;
 double viscosity_strength = viscosity_strength_const;
-int x_vs = width+widthstats/30*2+widthstats/4;
+double viscosity_strength_MAX = 10;
 int y_vs = height/4+height/20+((height/4-height/10)/5)*5;
 
 const double pi = 3.1415926535;
@@ -292,14 +292,6 @@ void reset_const()
     FPS = FPSconst;
     target_density = t_dens;
     viscosity_strength = viscosity_strength_const;
-
-    xk = width+widthstats/30*2+widthstats/4;
-    xh = width+widthstats/30*2+widthstats/4;
-    xm = width+widthstats/30*2;
-    xFPS = width+widthstats/30*2+widthstats/4;
-    x_tdens = width+widthstats/30*2;
-    x_vs = width+widthstats/30*2+widthstats/4;
-
 }
 
 
