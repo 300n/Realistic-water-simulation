@@ -308,6 +308,18 @@ void draw_scale()
     draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
 
 
+    bar.y += (height/4-height/10)/5;
+    SDL_RenderFillRect(renderer,&bar);
+    rect_texte.y += (height/4-height/10)/5;
+    sprintf(texte, "npm = %.3lf", near_pressure_multiplier);
+    surface_texte = TTF_RenderText_Blended(font, texte, white);
+    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+    rect_texte.w = surface_texte->w;
+    rect_texte.h = surface_texte->h;
+    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+    drawCircle(x_dot + bar.w * near_pressure_multiplier / near_pressure_multiplier_MAX,y_np,7);
+    draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
+
 }
 
 

@@ -8,8 +8,15 @@
 #include <time.h>
 #include <float.h>
 #include <stdint.h>
+#include <limits.h>
+
+// CPU data
 #include <unistd.h>
 #include <dirent.h> 
+
+//Multi-threading
+#include <pthread.h>
+#include <sched.h>
 
 
 #define matwidth 40
@@ -73,7 +80,10 @@ double pressure_multiplier = k;
 double pressure_multiplier_MAX = 400000;
 int yk = height/4+height/20+((height/4-height/10)/5)*4;
 
-double near_pressure_multiplier = 1;
+double const near_pressure_multiplier_constant = 0;
+double near_pressure_multiplier = near_pressure_multiplier_constant;
+double near_pressure_multiplier_MAX = 100;
+int y_np = height/4+height/20+((height/4-height/10)/5)*6;
 
 
 int const numofseparation = 50;
@@ -92,7 +102,7 @@ static const Uint32 hashK1 = 15823;
 static const Uint32 hashK2 = 9737333;
 
 
-double mouse_force = 50;
+double mouse_force = 15;
 bool stat_visual_status = true;
 
 typedef struct {
@@ -292,6 +302,7 @@ void reset_const()
     FPS = FPSconst;
     target_density = t_dens;
     viscosity_strength = viscosity_strength_const;
+    near_pressure_multiplier = near_pressure_multiplier_constant;
 }
 
 
