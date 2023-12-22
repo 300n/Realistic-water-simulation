@@ -18,7 +18,8 @@ bool Processing = false;
 bool inputing = false;
 bool full_screen = false;
 
-
+// Trouve toutes les particules qui se situent au dessus et forment la ligne barrière entre "l'air" et "l'eau"
+// Fonction peu efficace en O(n) probablement optimisable  
 void particleonttop()
 {
     int maxheight, temp = 0;
@@ -36,6 +37,9 @@ void particleonttop()
     }
 }
 
+
+// Trace un trait entre les particules qui consitues le dessus du fluide 
+// Manque de clareté + nombreux problèmes (ligne qui disparaît entre deux segments) a améliorer
 void align()
 {
     int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
@@ -52,11 +56,19 @@ void align()
     }
 }
 
+// Calcul de distance entre deux particules avec la norme des deux vecteurs (nom?)
 double Eularian_distance(int i, int j, int k, int n)
 {
     return sqrt(pow((particle_grid.data[k][n].predicted_position.x - particle_grid.data[i][j].predicted_position.x),2) + pow((particle_grid.data[k][n].predicted_position.y - particle_grid.data[i][j].predicted_position.y),2));
 }
 
+
+// Fonction responsable de l'optimisation sur le calcul des particules dans le rayon Kernel
+// On se base sur l'optimisation proposée ici https://web.archive.org/web/20140725014123/https://docs.nvidia.com/cuda/samples/5_Simulations/particles/doc/particles.pdf
+// Résultat de l'optimisation => augmentation de 2000% des performance, on passe d'une complexité en O(n²) à un complexité théorique en O(n) même si en réalité en pratique 
+// il s'agit plutôt d'une complexité en O(n² / 4)
+
+// Trouve la position sur la grille de chaque cellulle en fonction de sa position dans le cadre
 Vect2D Position_to_Cell(Vect2D point)
 {   
     Vect2D out;
@@ -65,6 +77,8 @@ Vect2D Position_to_Cell(Vect2D point)
     return out;
 }
 
+// Calcul le Hash de la case où se situe la particule
+// Nombres premiers choisis pour le hash hashK1 = 15823 && hashK2 = 9737333 => intérêt de prendre de grand nombre afin d'éviter l'overlapping des cellules
 u_int64_t HashCell(int cellX, int cellY)
 {
     u_int64_t a = (int)cellX * hashK1;
@@ -72,12 +86,15 @@ u_int64_t HashCell(int cellX, int cellY)
     return a + b;
 }
 
+// Obtention de la clé de la cellule où se situe la particule afin d'effectuer un tri par la suite en fonction de cette clé
 int Get_Key_from_Hash(u_int64_t hash)
 {
     // printf("hash = %d\n\n", hash);
     return hash % (int)(particle_grid.MATlength*particle_grid.MATwidth);
 }
 
+// tri quicksort https://fr.wikipedia.org/wiki/Tri_rapide avec une complexité moyenne de 0(nlogn)
+// tri fusion envisageable? -> peu d'intérêt au niveau du gain de performance 
 void swap(Couple* a, Couple* b) {
     Couple temp = *a;
     *a = *b;
@@ -106,6 +123,9 @@ void quicksort(Couple arr[], int low, int high) {
     }
 }
 
+// Fonction qui met à jour le "Spatial Lookup" un tableau recensant chaque particule est la cellule ou elle est située
+// Ce tableau est ensuite trié par ordre de cellule afin d'obtenir les particules qui sont situées dans la même cellule pour optimiser les calculs de rayon Kernel
+// Pas d'amélioration prévue ici
 void Update_Spatial_Lookup()
 {
     for (int i = 0; i < particle_grid.MATlength*particle_grid.MATwidth ; i++) {
@@ -119,7 +139,7 @@ void Update_Spatial_Lookup()
     
     }
 
-    // Sort cell by key
+    // Tri en fonction des cellules
     quicksort(Spatial_Lookup,0,particle_grid.MATlength*particle_grid.MATwidth-1);
 
     for (int i = 0; i < particle_grid.MATlength*particle_grid.MATwidth; i++) {
@@ -135,6 +155,9 @@ void Update_Spatial_Lookup()
     }
 }
 
+// Colorie les particules se situant de le rayon Kernel du point examiné
+// Parcours 3x3 autour de la cellule concernée afin d'obtenir les clés de chaque cellule examinée
+// Parcours du tableau Spatial_Lookup à partir des indices de chaque cellule afin de determiner les particules concernées et pouvoir les colorier 
 void color_particle_concerned(Vect2D sample_point)
 {
     isPaused = !isPaused;
@@ -171,6 +194,17 @@ void color_particle_concerned(Vect2D sample_point)
 
 
 
+// Rayon Kernel => permet de négliger les effets entre deux particules trop éloignées 
+// https://fr.wikipedia.org/wiki/Astuce_du_noyau && https://en.wikipedia.org/wiki/Kernel_method
+
+// Premier Kernel permettant le calcul de densité 
+// Utilisation de la fonction f(x) = (rayon_kernel - x)² 
+// Si la distance entre les deux particules est supérieure au rayon kernel alors la valeur de la fonction kernel est égale à 0
+// Calcul du volume en double intégrant entre 0 et le rayon kernel et 0 et 2pi 
+// (Integrate[Integrate[\(40)s-x\(41)²x,{θ,0,2π}],{x,0,s}]) avec s notre rayon kernel
+// https://www.wolframalpha.com/input?i2d=true&i=Integrate%5BIntegrate%5B%5C%2840%29s-x%5C%2841%29%C2%B2x%2C%7B%CE%B8%2C0%2C2%CF%80%7D%5D%2C%7Bx%2C0%2Cs%7D%5D
+// On obtient alors volume = (pi*rayon_kernel^4) / 6 
+// Ensemble des Kernels sont basés sur les calculs ici https://matthias-research.github.io/pages/publications/sca03.pdf
 double Smoothing_Kernel(double dst)
 {
     if (dst>=smoothing_radius) { return 0; }
@@ -189,6 +223,13 @@ double Smoothing_Kernel_Derivative(double dst)
 	}
 }
 
+// Second Kernel permettant de calculer la viscosité
+// Utilisation de la fonction f(x) = (rayon_kernel² - x²)^3 
+// Si la distance entre les deux particules est supérieure au rayon kernel alors la valeur de la fonction kernel est égale à 0
+// Calcul du volume en double intégrant entre 0 et le rayon kernel et 0 et 2pi 
+// Integrate[Integrate[Power[\(40)s²-x²\(41),3]x,{θ,0,2π}],{x,0,s}]
+// https://www.wolframalpha.com/input?i2d=true&i=Integrate%5BIntegrate%5BPower%5B%5C%2840%29s%C2%B2-x%C2%B2%5C%2841%29%2C3%5Dx%2C%7B%CE%B8%2C0%2C2%CF%80%7D%5D%2C%7Bx%2C0%2Cs%7D%5D
+// On obtient alors volume = (pi * rayon_kernel^8) / 4
 double Viscosity_smoothing_kernel(double dst)
 {
     if (dst>=smoothing_radius) { return 0; }
@@ -199,6 +240,13 @@ double Viscosity_smoothing_kernel(double dst)
     }
 }
 
+// Troisième Kernel permettant de calculer la densité pour deux particules extrêmement proches
+// Utilisation de la fonction f(x) = (rayon_kernel - x)^3
+// Si la distance entre les deux particules est supérieure au rayon kernel alors la valeur de la fonction kernel est égale à 0
+// Calcul du volume en double intégrant entre 0 et le rayon kernel et 0 et 2pi 
+// Integrate[Integrate[Power[\(40)s-x\(41),3]x,{θ,0,2π}],{x,0,s}]
+// https://www.wolframalpha.com/input?i2d=true&i=Integrate%5BIntegrate%5BPower%5B%5C%2840%29s-x%5C%2841%29%2C3%5Dx%2C%7B%CE%B8%2C0%2C2%CF%80%7D%5D%2C%7Bx%2C0%2Cs%7D%5D
+// On obtient alors volume = (pi * rayon_kernel^5) / 10
 double Near_density_Kernel( double dst)
 {
     if (dst>=smoothing_radius) { return 0; }
@@ -220,6 +268,10 @@ double Near_density_Kernel_Derivative(double dst)
 }
 
 
+// Calcul de la densité en utilisant le parcours 3x3 vu précédement 
+// en ajoutant la masse de chaque particule x l'influence de cette particule sur la particule concernée
+// Problèmes -> Calcul des densités à l'extérieur des limites -> volume souvent trop élevé
+// Conséquences -> Les particules sont aglutinées sur les bords 
 double2 Calculate_Density(int k, int n)
 {
     double density = 0, near_density = 0, q;
@@ -254,6 +306,9 @@ double2 Calculate_Density(int k, int n)
 
 
 
+// Convertit une densité en une force de pression en utilisant un objectif de densité qui est "fixé" au début du programme
+// Tant que cet objectif n'est pas atteint dans une zone les particules se déplacent de façon à l'atteindre 
+// La multiplication par un pressure_multiplier permet d'atteindre cet objectif de pression plus ou moins rapidement et ainsi de fluidifier la simulation 
 double2 Convert_Density_To_Pressure(double density, double near_density)
 {
 	double density_error = 	density - target_density;
@@ -263,6 +318,8 @@ double2 Convert_Density_To_Pressure(double density, double near_density)
 	return pressures;
 }
 
+// Calcul la force de pression exercée par la particule examiné sur l'autre 
+// => d'après Newton chaque force admet une force réciproque (https://fr.wikipedia.org/wiki/Lois_du_mouvement_de_Newton)
 double Calculate_Shared_Pressure(double densityA, double densityB)
 {
 	double pressureA = Convert_Density_To_Pressure(densityA,0
@@ -271,7 +328,10 @@ double Calculate_Shared_Pressure(double densityA, double densityB)
 	return (pressureA + pressureB) / 2;
 }
 
-
+// Pour chaque particule on regarde ses voisines se situant dans le rayon Kernel
+// On utilise une fonction Kernel plus pentue afin d'augmenter l'effet des particules proches 
+// (et donc d'éviter les contacts qui ne peuvent pas exister dans un modèle parfait)
+// 
 Vect2D Calculate_Pressure_Force(int k, int n)
 {
     double q;
@@ -319,7 +379,7 @@ Vect2D Calculate_Pressure_Force(int k, int n)
 
 
 
-
+// Utilisation d'une fonction kernel moins pentue -> pas de besoin d'augmenter la viscosité si deux particules sont trop proches
 Vect2D Calculate_Viscosity_Force(int k, int n)
 {isPaused = !isPaused;
     Vect2D viscosityforce = Vect2D_zero();
@@ -351,6 +411,8 @@ Vect2D Calculate_Viscosity_Force(int k, int n)
     return viscosityforce;
 }
 
+
+// Applique une force répulsive ou attractive au praticule selon le click utilisé
 Vect2D Mouse_force(Vect2D inputPos, int k ,int n, double strength)
 {
     Vect2D interaction_Force = Vect2D_zero();
@@ -372,6 +434,8 @@ Vect2D Mouse_force(Vect2D inputPos, int k ,int n, double strength)
     return interaction_Force;
 }
 
+
+// Examine la densité en un point de la simulation 
 void Examine_Density(int x, int y)
 {
     SDL_SetRenderDrawColor(renderer,255,255,255,SDL_ALPHA_OPAQUE);
@@ -418,6 +482,9 @@ void Examine_Density(int x, int y)
     SDL_RenderPresent(renderer);
 }
 
+// Visualise les endroits de la simulation où la densité n'est pas assez/trop grande par rapport à la densité visée
+// Si cette densité est trop petite alors la zone apparait en couleur froide (bleu) et si c'est l'inverse il s'agit d'une couleur chaude (orange)
+// Pour les zones proches de la densité visée elles apparaissent en blanc
 void Visualize_Density()
 {
     double density,q,delta;
@@ -450,8 +517,9 @@ void Visualize_Density()
     SDL_RenderPresent(renderer);
 }
 
+
+// Détecte une sortie de l'écran pour une partciule
 void particle_out_of_the_grid()
-/*Détecte une sortie de l'écran*/
 {
     for (int i = 0; i<particle_grid.MATlength; i++) { 
         for (int j = 0; j<particle_grid.MATwidth; j++) {
@@ -474,6 +542,7 @@ void particle_out_of_the_grid()
     }
 }
 
+// Affiche l'espace de simulation 
 void affichage()
 {
     clear_grid();
@@ -500,8 +569,8 @@ void affichage()
     }
 }
 
-void update()   
 /*mise à jour des positions de chaque particule*/
+void update()   
 {
     if (!isPaused
     ) {
@@ -580,7 +649,8 @@ void update()
         }
 
 
-        
+        // Colore chaque particule selon sa vitesse relative par rapport à la particule la plus rapide de la simulation
+        // Plus une particule est rapide plus elle apparait dans une couleur chaude 
         for (int i = 0 ; i < particle_grid.MATlength ; i++ ) {
             for (int j = 0 ; j < particle_grid.MATlength ; j++) {
                 double vitesse_normalisee = ((fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y))) / vitesse_max;
@@ -605,9 +675,10 @@ void update()
     }
 }
 
+// Décale l'espace de simulation vers la droite pendant un instant avant de revenir à l'état initial
 void rightshift() 
 {
-    int timeout = SDL_GetTicks64() + 1000; 
+    int timeout = SDL_GetTicks64() + 500; 
     int temp = x_right;
     while (SDL_GetTicks64() < timeout){
         update();
@@ -623,6 +694,7 @@ void rightshift()
     }
 }
 
+// Décale l'espace de simiulation vers le haut pendant un instant avant de revenir à l'état initial 
 void upshift()
 {
     int timeout = SDL_GetTicks64() + 1000;
@@ -783,20 +855,20 @@ void* aff(void* arg)
                                      SDL_PollEvent(&Event);
                                  }
                              }
-                            if (Sample_point.x>(x_right-widthstats+widthstats/15) && Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>(height/4+height/20)-height/40 && Sample_point.y<(height/4+height/20+height/400)+height/100) {
+                            if (Sample_point.x>(x_right-widthstats+widthstats/15) && Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>yFPS-10 && Sample_point.y<yFPS+10) {
                                FPS = FPS_MAX * (Sample_point.x - (x_right-widthstats+widthstats/15)) / (widthstats/2);
-                            } else if (Sample_point.x>(x_right-widthstats+widthstats/15)&& Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>(height/4+height/20)-height/40+(height/4-height/10)/5 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/4-height/10)/5) {
+                            } else if (Sample_point.x>(x_right-widthstats+widthstats/15)&& Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>yh-10 && Sample_point.y<yh+10) {
                                smoothing_radius = smoothing_radius_MAX * (Sample_point.x - (x_right-widthstats+widthstats/15)) / (widthstats/2);
-                            } else if (Sample_point.x>(x_right-widthstats+widthstats/15) && Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*2 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)) {
+                            } else if (Sample_point.x>(x_right-widthstats+widthstats/15) && Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>ym-10 && Sample_point.y<ym+10) {
                                m = mass_MAX * (Sample_point.x - (x_right-widthstats+widthstats/15)) / (widthstats/2);
-                            } else if (Sample_point.x>(x_right-widthstats+widthstats/15) && Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*3 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*1.5) {
+                            } else if (Sample_point.x>(x_right-widthstats+widthstats/15) && Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>y_tdens-10 && Sample_point.y<y_tdens+10) {
                                target_density = target_density_MAX * (Sample_point.x - (x_right-widthstats+widthstats/15)) / (widthstats/2);
-                            } else if (Sample_point.x>(x_right-widthstats+widthstats/15) && Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*4 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*2.5) {
+                            } else if (Sample_point.x>(x_right-widthstats+widthstats/15) && Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>yk-10 && Sample_point.y<yk+10) {
                                pressure_multiplier = pressure_multiplier_MAX * (Sample_point.x - (x_right-widthstats+widthstats/15)) / (widthstats/2);
-                            } else if (Sample_point.x>(x_right-widthstats+widthstats/15) && Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*5 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*3.5) {
+                            } else if (Sample_point.x>(x_right-widthstats+widthstats/15) && Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>y_vs-10 && Sample_point.y<y_vs+10) {
                                viscosity_strength = viscosity_strength_MAX * (Sample_point.x - (x_right-widthstats+widthstats/15)) / (widthstats/2);
-                            } else if (Sample_point.x>(x_right-widthstats+widthstats/15) && Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>(height/4+height/20)-height/40+((height/4-height/10)/5)*6 && Sample_point.y<(height/4+height/20+height/400)+height/100+(height/40+(height/4-height/10)/5)*4.5) {
-                                near_pressure_multiplier = near_pressure_multiplier_MAX * (Sample_point.x - (x_right-widthstats+widthstats/15)) / (widthstats/2);
+                            } else if (Sample_point.x>(x_right-widthstats+widthstats/15) && Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>y_np-10 && Sample_point.y<y_np+10) {
+                               near_pressure_multiplier = near_pressure_multiplier_MAX * (Sample_point.x - (x_right-widthstats+widthstats/15)) / (widthstats/2);
                             }
                          } else if (Event.button.button == SDL_BUTTON_RIGHT) {
                              if (Sample_point.x > 0 && Sample_point.x < width+500 && Sample_point.y > 0 && Sample_point.y < height) {
@@ -837,7 +909,14 @@ void* aff(void* arg)
         }
     }
 
-    SDL_DestroyTexture(texture_texte);
+
+
+
+
+
+
+
+
     SDL_FreeSurface(surface_texte);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

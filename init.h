@@ -34,7 +34,7 @@ int y_down = height;
 #define DAMPING_COEFFICIENT 0.9
 
 
-
+    
 
 
 SDL_Renderer* renderer;
