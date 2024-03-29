@@ -1,10 +1,6 @@
 #include "Get_stat.h"
- 
-
 char texte[100];
 double dt;
-
-
 double mu_eau = 0.0001;
 double p0 = 0.5; // base density
 
@@ -17,6 +13,8 @@ bool isPaused = false;
 bool Processing = false;
 bool inputing = false;
 bool full_screen = false;
+bool help = false;
+bool drawing_obstacles = false;
 
 // Trouve toutes les particules qui se situent au dessus et forment la ligne barrière entre "l'air" et "l'eau"
 // Fonction peu efficace en O(n) probablement optimisable  
@@ -36,15 +34,40 @@ void particleonttop()
         temp++;
     }
 }
+int particle_on_top_space;
 
+void particule_on_top()
+{
+    particle_on_top_space = 0;
+    for (int Cell_x = 0; Cell_x<width/smoothing_radius; Cell_x++) {
+        int maxheight = height;
+        int cellStartIndex = start_indices[Cell_x];
+        for (int l = cellStartIndex; l<particle_grid.MATlength*particle_grid.MATwidth; l++) {
+            if (Spatial_Lookup[l].value != Cell_x) { break; }
+            int particle_Index = Spatial_Lookup[l].index;
+            if (particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].position.y < maxheight) {
+                maxheight = particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].position.y;
+                particle_grid.particle_on_top[particle_on_top_space] = particle_Index;
+            } 
 
+        }
+        // printf("%d\n", particle_on_top_space);                                                                                              
+        particle_on_top_space++;
+    }
+    // for (int k = 0; k < (particle_on_top_space); k++) { 
+    //     printf("%d\n",particle_grid.particle_on_top[k]);
+    // }
+}
+
+                                                                                                                                                                        
 // Trace un trait entre les particules qui consitues le dessus du fluide 
 // Manque de clareté + nombreux problèmes (ligne qui disparaît entre deux segments) a améliorer
 void align()
 {
-    int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+     printf("%d\n", particle_on_top_space);
+    int x1, y1, x2, y2;
     SDL_SetRenderDrawColor(renderer,0,0,255,SDL_ALPHA_OPAQUE);
-    for (int k = 0; k < (numofseparation)-1; k++) {
+    for (int k = 0; k < (particle_on_top_space); k++) {
         x1 = particle_grid.particle_on_top[k] / matwidth;
         x2 = particle_grid.particle_on_top[k+1] / matwidth;
         y1 = particle_grid.particle_on_top[k] % matlength;
@@ -55,6 +78,25 @@ void align()
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Calcul de distance entre deux particules avec la norme des deux vecteurs (nom?)
 double Eularian_distance(int i, int j, int k, int n)
@@ -93,35 +135,53 @@ int Get_Key_from_Hash(u_int64_t hash)
     return hash % (int)(particle_grid.MATlength*particle_grid.MATwidth);
 }
 
-// tri quicksort https://fr.wikipedia.org/wiki/Tri_rapide avec une complexité moyenne de 0(nlogn)
-// tri fusion envisageable? -> peu d'intérêt au niveau du gain de performance 
-void swap(Couple* a, Couple* b) {
-    Couple temp = *a;
-    *a = *b;
-    *b = temp;
-}
+// tri fusion avec une complexité moyenne de 0(nlogn)
+void merge(Couple arr[], int l, int m, int r) {
+    int i, j, k;
+    int n1 = m-l+1;
+    int n2 = r-m;
 
-int partition(Couple arr[], int low, int high) {
-    int pivot = arr[high].value;
-    int i = (low - 1);
+    Couple L[n1], R[n2];
+    for (i = 0; i<n1; i++)
+        L[i] = arr[l+i];
+    for (j = 0; j<n2; j++)
+        R[j] = arr[m+1+j];
 
-    for (int j = low; j <= high - 1; j++) {
-        if (arr[j].value < pivot) {
+    i = 0;
+    j = 0;
+    k = l;
+    while (i<n1 && j<n2) {
+        if (L[i].value<=R[j].value) {
+            arr[k] = L[i];
             i++;
-            swap(&arr[i], &arr[j]);
         }
+        else {
+            arr[k] = R[j];
+            j++;
+        }
+        k++;
     }
-    swap(&arr[i + 1], &arr[high]);
-    return (i + 1);
+    while (i<n1) {
+        arr[k] = L[i];
+        i++;
+        k++;
+    }
+    while (j<n2) {
+        arr[k] = R[j];
+        j++;
+        k++;
+    }
 }
 
-void quicksort(Couple arr[], int low, int high) {
-    if (low < high) {
-        int pi = partition(arr, low, high);
-        quicksort(arr, low, pi - 1);
-        quicksort(arr, pi + 1, high);
+void mergeSort(Couple arr[], int l, int r) {
+    if (l < r) {
+        int m = l + (r - l) / 2;
+        mergeSort(arr, l, m);
+        mergeSort(arr, m + 1, r);
+        merge(arr, l, m, r);
     }
 }
+
 
 // Fonction qui met à jour le "Spatial Lookup" un tableau recensant chaque particule est la cellule ou elle est située
 // Ce tableau est ensuite trié par ordre de cellule afin d'obtenir les particules qui sont situées dans la même cellule pour optimiser les calculs de rayon Kernel
@@ -140,7 +200,7 @@ void Update_Spatial_Lookup()
     }
 
     // Tri en fonction des cellules
-    quicksort(Spatial_Lookup,0,particle_grid.MATlength*particle_grid.MATwidth-1);
+    mergeSort(Spatial_Lookup,0,particle_grid.MATlength*particle_grid.MATwidth-1);
 
     for (int i = 0; i < particle_grid.MATlength*particle_grid.MATwidth; i++) {
         int key = Spatial_Lookup[i].value;
@@ -190,10 +250,6 @@ void color_particle_concerned(Vect2D sample_point)
 }
 
 
-
-
-
-
 // Rayon Kernel => permet de négliger les effets entre deux particules trop éloignées 
 // https://fr.wikipedia.org/wiki/Astuce_du_noyau && https://en.wikipedia.org/wiki/Kernel_method
 
@@ -225,7 +281,7 @@ double Smoothing_Kernel_Derivative(double dst)
 
 // Second Kernel permettant de calculer la viscosité
 // Utilisation de la fonction f(x) = (rayon_kernel² - x²)^3 
-// Si la distance entre les deux particules est supérieure au rayon kernel alors la valeur de la fonction kernel est égale à 0
+// Si la distance entre les deux particu //printf("Touche pressée : %s\n", SDL_GetKeyName(Event.key.keysym.sym));les est supérieure au rayon kernel alors la valeur de la fonction kernel est égale à 0
 // Calcul du volume en double intégrant entre 0 et le rayon kernel et 0 et 2pi 
 // Integrate[Integrate[Power[\(40)s²-x²\(41),3]x,{θ,0,2π}],{x,0,s}]
 // https://www.wolframalpha.com/input?i2d=true&i=Integrate%5BIntegrate%5BPower%5B%5C%2840%29s%C2%B2-x%C2%B2%5C%2841%29%2C3%5Dx%2C%7B%CE%B8%2C0%2C2%CF%80%7D%5D%2C%7Bx%2C0%2Cs%7D%5D
@@ -399,7 +455,7 @@ Vect2D Calculate_Viscosity_Force(int k, int n)
                 if (k!=particle_Index/particle_grid.MATlength || n !=particle_Index%particle_grid.MATlength) {
                      double q = Eularian_distance(k,n,particle_Index/particle_grid.MATlength,particle_Index%particle_grid.MATlength);
                     if (q<=smoothing_radius) {
-                        double influence = Viscosity_smoothing_kernel(q);
+                        double influence  = Viscosity_smoothing_kernel(q);
                         viscosityforce.x += (particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].velocity.x - particle_grid.data[k][n].velocity.x) * influence;
                         viscosityforce.y += (particle_grid.data[particle_Index/particle_grid.MATlength][particle_Index%particle_grid.MATlength].velocity.y - particle_grid.data[k][n].velocity.y) * influence;
 
@@ -521,6 +577,7 @@ void Visualize_Density()
 // Détecte une sortie de l'écran pour une partciule
 void particle_out_of_the_grid()
 {
+
     for (int i = 0; i<particle_grid.MATlength; i++) { 
         for (int j = 0; j<particle_grid.MATwidth; j++) {
             O+=4;           
@@ -563,22 +620,26 @@ void affichage()
             }            
         }
     }
+    if (help) {
+        draw_help();
+    }
     if (particle_visible == -1) {
-        particleonttop();
+        particule_on_top();
         align();
+        for (int i = 0 ; i < particle_grid.MATlength ; i++) {
+            for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
+                SDL_SetRenderDrawColor(renderer, particle_grid.data[i][j].color[0], particle_grid.data[i][j].color[1], particle_grid.data[i][j].color[2], SDL_ALPHA_OPAQUE);
+                drawCircle(particle_grid.data[i][j].position.x,particle_grid.data[i][j].position.y,10);
+     
+            }
+        }   
     }
 }
 
 /*mise à jour des positions de chaque particule*/
 void update()   
 {
-    if (!isPaused
-    ) {
-
-
-        Processing = true;
-        // Set render color to blue
-        SDL_SetRenderDrawColor(renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
+    if (!isPaused) {
 	    for (int i = 0 ; i < particle_grid.MATlength ; i++) {
             for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
 	    		particle_grid.data[i][j].velocity.y += g * 20 / FPS;
@@ -588,7 +649,7 @@ void update()
 	    }
 
 
-        Update_Spatial_Lookup();
+        Update_Spatial_Lookup(); /// PB d'optimisation ici 100%
 
         for (int i = 0 ; i < particle_grid.MATlength ; i++) {
             for (int j = 0 ; j < particle_grid.MATwidth ; j++) {
@@ -605,9 +666,9 @@ void update()
         		Vect2D pressure_force = Calculate_Pressure_Force(i,j);
 
                 // Calculate pressure acceleration
-        		Vect2D pressure_acceleration;
-        		pressure_acceleration.x = pressure_force.x / particle_grid.data[i][j].density;
-        		pressure_acceleration.y = pressure_force.y / particle_grid.data[i][j].density;
+         		Vect2D pressure_acceleration;
+         		pressure_acceleration.x = pressure_force.x / particle_grid.data[i][j].density;
+         		pressure_acceleration.y = pressure_force.y / particle_grid.data[i][j].density;
 
                 // Update particle velocity
         		particle_grid.data[i][j].velocity.x += pressure_acceleration.x * dt;;
@@ -655,16 +716,12 @@ void update()
             for (int j = 0 ; j < particle_grid.MATlength ; j++) {
                 double vitesse_normalisee = ((fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y))) / vitesse_max;
                 // printf("vitesse_normalisee = %lf && vitesse_max = %lf && vitess_part = %lf\n", vitesse_normalisee, vitesse_max,(fabs(particle_grid.data[i][j].velocity.x) + fabs(particle_grid.data[i][j].velocity.y)));
-                
+     
                 if (particle_grid.data[i][j].position.x < x_right - pradius && particle_grid.data[i][j].position.x > x_left + pradius && 
                 particle_grid.data[i][j].position.y > y_up + pradius && particle_grid.data[i][j].position.y < y_down - pradius) {
                     particle_grid.data[i][j].color[0] = vitesse_normalisee * 255;
                     particle_grid.data[i][j].color[1] = 0;
                     particle_grid.data[i][j].color[2] = (1 - vitesse_normalisee) * 255;
-                } else {
-                    particle_grid.data[i][j].color[0] = 0;
-                    particle_grid.data[i][j].color[1] = 0;
-                    particle_grid.data[i][j].color[2] = 255;
                 }
             }
         }
@@ -718,7 +775,7 @@ void upshift()
 int running = 1, choice = 1;
 
 
-void* aff(void* arg)
+void aff()
 /*affichage des particules*/
 {
     SDL_Event Event;
@@ -763,11 +820,15 @@ void* aff(void* arg)
                      } else if (Event.key.keysym.scancode == SDL_SCANCODE_S) {
                          particle_visible*=-1;
                      } else if (Event.key.keysym.scancode == SDL_SCANCODE_C) {
-                         choice *= -1;
+                         choice *= -1; 
                      } else if (Event.key.keysym.scancode == SDL_SCANCODE_G) {
                          rightshift();
                      } else if (Event.key.keysym.scancode == SDL_SCANCODE_U) {
                          upshift();
+                     } else if (Event.key.keysym.scancode == SDL_SCANCODE_D) {
+                         drawing_obstacles = !drawing_obstacles;
+                     }  else if (Event.key.keysym.scancode== SDL_SCANCODE_H) {
+                        help = !help;
                      } else if (Event.key.keysym.scancode == SDL_SCANCODE_F11) {
                         if (!full_screen) {
                             SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
@@ -790,7 +851,7 @@ void* aff(void* arg)
                      SDL_GetMouseState(&mousex,&mousey);
                      Sample_point.x = mousex;
                      Sample_point.y = mousey;
-                     if (choice == 1) {
+                     if (choice == 1 && !drawing_obstacles) {
                          if (Sample_point.x > 0 && Sample_point.x < x_right && Sample_point.y > 0 && Sample_point.y < y_down && (Sample_point.x < x_right - widthstats || Sample_point.y>y_down/2)) {
                              while (Event.type != SDL_MOUSEBUTTONUP) {
                                  if (Event.button.button == SDL_BUTTON_LEFT) {
@@ -847,7 +908,7 @@ void* aff(void* arg)
                          } else if (Sample_point.x>(x_right-widthstats+widthstats/15) && Sample_point.x<(x_right-widthstats+widthstats/15)+widthstats/2 && Sample_point.y>y_np-10 && Sample_point.y<y_np+10) {
                             near_pressure_multiplier = near_pressure_multiplier_MAX * (Sample_point.x - (x_right-widthstats+widthstats/15)) / (widthstats/2);
                          }
-                     } else if (choice == -1) {
+                     } else if (choice == -1 && !drawing_obstacles) {
                          if (Event.button.button == SDL_BUTTON_LEFT) {
                              if (Sample_point.x > 0 && Sample_point.x < width && Sample_point.y > 0 && Sample_point.y < height) {
                                  Examine_Density(Sample_point.x,Sample_point.y);    
@@ -887,7 +948,24 @@ void* aff(void* arg)
                                      SDL_PollEvent(&Event);
                              }
                          }
-                     }
+                     } else if (drawing_obstacles) {
+                        int drawing = 1;
+                        while (drawing) {
+                            while (Event.type != SDL_MOUSEBUTTONUP) {
+                                    SDL_GetMouseState(&mousex,&mousey);
+                                    SDL_SetRenderDrawColor(renderer,255,255,255,SDL_ALPHA_OPAQUE);
+                                    drawCircle(mousex,mousey,5);
+                                    
+                                    drawing++;
+                                    SDL_RenderPresent(renderer);
+                                    SDL_Delay(1);
+                                    SDL_PollEvent(&Event);
+                            }
+                            drawing = 0;
+                            isPaused = true;
+                        }
+                            
+                         }
                      break;
              }
          }
@@ -896,63 +974,29 @@ void* aff(void* arg)
         update();
         end_time = SDL_GetTicks();
         fflush(stdout);
-        // printf("elsapsed_time = %lf\n", (double)elapsed_time);
+        
+        
         stat_aff(1000/((double)elapsed_time+0.0001));
         draw_scale();
         
         elapsed_time = end_time - start_time;
 
-
+        
         if (!isPaused) {
             SDL_RenderPresent(renderer);
             SDL_UpdateWindowSurface(window);
         }
     }
-
-
-
-
-
-
-
-
-
     SDL_FreeSurface(surface_texte);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    return NULL;
 }
-
-
-
 
 int main()
 {
     initSDL();
     initTTF();
-
-    pthread_t thread1/*, thread2*/;
-    pthread_attr_t attr1/*, attr2*/;
-
-    pthread_attr_init(&attr1);
-    // pthread_attr_init(&attr2);
-
-    struct sched_param param1;
-    param1.sched_priority = 100;  
-    pthread_attr_setschedparam(&attr1, &param1);
-
-    pthread_create(&thread1, &attr1, aff, NULL);
-    // pthread_create(&thread2, &attr2, input, NULL);
-
-    // Attendre la fin des threads (optionnel)
-    pthread_join(thread1, NULL);
-    // pthread_join(thread2, NULL);
-
-    // Détruire les attributs
-    pthread_attr_destroy(&attr1);
-    // pthread_attr_destroy(&attr2);
-
-
+    aff();
     return 0;
 }

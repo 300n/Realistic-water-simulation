@@ -19,13 +19,13 @@
 #include <sched.h>
 
 
-#define matwidth 40
-#define matlength 40
+#define matwidth 80
+#define matlength 80
 #define width 1200
 #define height 1015
 #define widthstats 525
 #define widthscale 295
-#define pradius 5
+#define pradius 3
 int x_right = width+widthstats;
 int x_left = 0;
 int y_up = 0;
@@ -86,7 +86,7 @@ double near_pressure_multiplier_MAX = 100;
 int y_np = height/4+height/20+((height/4-height/10)/5)*6;
 
 
-int const numofseparation = 50;
+int const numofseparation = 500;
 int particle_visible = 1;
 int z = 0;
 
@@ -123,6 +123,7 @@ typedef struct {
 typedef struct matrice {
     int MATlength;
     int MATwidth;
+    int taille_max;
     Particule** data;
     int* particle_on_top;
 }Matrice;
@@ -203,14 +204,9 @@ void initmat()
     srand(time(0));             
     for (int i = 0; i<particle_grid.MATlength; i++) {
         for (int j = 0; j<particle_grid.MATwidth; j++) {
-            // particle_grid.data[i][j].position.x = (rand() %(x_right-x_left))+x_left;;
-            // particle_grid.data[i][j].position.y = (rand() %(y_down-y_up))+y_up;; 
+             
             particle_grid.data[i][j].position.x = ((x_right-x_left)-matlength*2*1.5*pradius)/2+i*pradius*2*1.5;
             particle_grid.data[i][j].position.y = ((y_down-y_up)-matwidth*2*1.5*pradius)/2+j*pradius*2*1.5;
-
-
-            particle_grid.data[i][j].velocity.x = 0;
-            particle_grid.data[i][j].velocity.y = 0;
 
             particle_grid.data[i][j].color = (int*)malloc(sizeof(int)*3);
             particle_grid.data[i][j].color[0] = 0;

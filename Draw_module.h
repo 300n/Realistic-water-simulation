@@ -29,7 +29,7 @@ void draw_Cartesian_axes()
     SDL_RenderDrawLine(renderer,(height/40*3)-(height/275),(width/40)+(((width-(width/20))/20)*18),(height/40*3)-(height/275)+(height/140),(width/40)+(((width-(width/20))/20)*18)+(width/140));
     SDL_RenderDrawLine(renderer,(height/40*3)-(height/275)-(height/140),(width/40)+(((width-(width/20))/20)*18)+(width/140),(height/40*3)-(height/275)+(height/140),(width/40)+(((width-(width/20))/20)*18)+(width/140));
     /*txt*/
-    sprintf(texte, "1m");
+    SDL_snprintf(texte, sizeof(texte), "1m\0");
     surface_texte = TTF_RenderText_Blended(smallfont, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.x = (height/40+(((height-(height/20))/20))+height/40+(((height-(height/20))/20)*2))/2-height/80;
@@ -113,90 +113,6 @@ void clear_grid()
 
 
 
-void drawcpudata()
-{
-    SDL_Rect bar, legend;
-    draw_rect(width+widthstats/30,height/40+height/2,widthstats-widthstats/15,height/2-height/20);
-    sprintf(texte, "Utilisation du CPU en %% (%f%%)", cpu_tot);
-    cpu_tot = 0;
-    surface_texte = TTF_RenderText_Blended(font, texte, white);
-    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.w = surface_texte->w;
-    rect_texte.h = surface_texte->h;
-    rect_texte.x = width+widthstats/2-rect_texte.w/2;
-    rect_texte.y = height/2+height/20;
-    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-
-
-
-    square.x = width+100+5;
-    square.y = height-height/3-height/14+5;
-    square.h = 50;
-    square.w = widthstats-200;
-    for (int i = 0 ;i<5; i++) {
-        square.x--;
-        square.y--;
-        SDL_RenderDrawRect(renderer,&square);
-    }
-    SDL_SetRenderDrawColor(renderer, RGB_lines, RGB_lines, RGB_lines, SDL_ALPHA_OPAQUE);
-    for (int i = 1; i<40; i++) {
-        SDL_RenderDrawLine(renderer, square.x+(square.w/40)*i+5,square.y+5,square.x+(square.w/40)*i+7,square.y+square.h-2);
-    }
-
-    bar.x = square.x+5;
-    bar.y = square.y+5;
-    bar.h = square.h-6;
-
-    legend.x = width+100;
-    legend.y = height/2+height/6;
-    legend.w = width/40;
-    legend.h = height/40; 
-    int temp = 0;
-    for (int i = 0; i<20; i++) {
-        if (prog[i].PID!=0 && prog[i].cpu_usage>0.8 && prog[i].PID<20000) {
-            // SDL_SetRenderDrawColor(renderer,prog[i].color.R,prog[i].color.G,prog[i].color.B,SDL_ALPHA_OPAQUE);
-            SDL_SetRenderDrawColor(renderer,Palette[temp%7].R,Palette[temp%7].G,Palette[temp%7].B,SDL_ALPHA_OPAQUE);
-            bar.w = square.w*(prog[i].cpu_usage/100);
-            cpu_tot += prog[i].cpu_usage;
-            SDL_RenderFillRect(renderer,&bar);
-            bar.x += bar.w;
-            temp++;
-
-
-
-
-            //printf("legend.x = %d, legend.y = %d, legend.w = %d, legend.h = %d\n", legend.x, legend.y, legend.w, legend.h);
-            SDL_RenderFillRect(renderer,&legend);
-            SDL_SetRenderDrawColor(renderer,RGB_txt,RGB_txt,RGB_txt,SDL_ALPHA_OPAQUE);
-            SDL_RenderDrawRect(renderer,&legend);
-            strcpy(texte,prog[i].id);
-            char* texte1 = strtok(texte, "(");
-            char* texte2 = strtok(texte1, ")");
-
-
-            surface_texte = TTF_RenderText_Blended(font, texte2, white);
-            texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-            rect_texte.x = legend.x + 30    ;
-            rect_texte.y = legend.y;
-            rect_texte.w = surface_texte->w;
-            rect_texte.h = surface_texte->h;
-            SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-            sprintf(texte, "(%-2f %%)", prog[i].cpu_usage);
-            surface_texte = TTF_RenderText_Blended(font, texte, white);
-            texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-            rect_texte.x += rect_texte.w+5;
-            rect_texte.w = surface_texte->w;
-            rect_texte.h = surface_texte->h;
-            SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-
-            
-            legend.y += height/40+2;
-
-
-
-        }   
-    }    
-}
 
 
 void Colorflipped()
@@ -225,7 +141,7 @@ void draw_scale()
 
     rect_texte.x = bar.x+bar.w+widthstats/16+widthstats/100;
     rect_texte.y = bar.y-bar.h*6;
-    sprintf(texte, "FPS = %.0lf", FPS);
+    SDL_snprintf(texte, sizeof(texte), "FPS = %.0lf\0", FPS);
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.w = surface_texte->w;
@@ -239,7 +155,7 @@ void draw_scale()
     SDL_RenderFillRect(renderer,&bar);
 
     rect_texte.y += (height/4-height/10)/5;
-    sprintf(texte, "h = %.0lf", smoothing_radius);
+    SDL_snprintf(texte, sizeof(texte), "h = %.0lf\0", smoothing_radius);
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.w = surface_texte->w;
@@ -251,7 +167,7 @@ void draw_scale()
     bar.y += (height/4-height/10)/5;
     SDL_RenderFillRect(renderer,&bar);
     rect_texte.y += (height/4-height/10)/5;
-    sprintf(texte, "m = %.0lf", m);
+    SDL_snprintf(texte, sizeof(texte), "m = %.0lf\0", m);
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.w = surface_texte->w;
@@ -264,7 +180,7 @@ void draw_scale()
     bar.y += (height/4-height/10)/5;
     SDL_RenderFillRect(renderer,&bar);
     rect_texte.y += (height/4-height/10)/5;
-    sprintf(texte, "t_dens = %.6lf", target_density);
+    SDL_snprintf(texte, sizeof(texte), "t_dens = %.6lf\0", target_density);
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.w = surface_texte->w;
@@ -277,7 +193,7 @@ void draw_scale()
     bar.y += (height/4-height/10)/5;
     SDL_RenderFillRect(renderer,&bar);
     rect_texte.y += (height/4-height/10)/5;
-    sprintf(texte, "p = %.0lf", pressure_multiplier);
+    SDL_snprintf(texte, sizeof(texte), "p = %.0lf\0", pressure_multiplier);
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.w = surface_texte->w;
@@ -289,7 +205,7 @@ void draw_scale()
     bar.y += (height/4-height/10)/5;
     SDL_RenderFillRect(renderer,&bar);
     rect_texte.y += (height/4-height/10)/5;
-    sprintf(texte, "visco = %.3lf", viscosity_strength);
+    SDL_snprintf(texte, sizeof(texte),"visco = %.3lf\0", viscosity_strength);
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.w = surface_texte->w;
@@ -302,7 +218,7 @@ void draw_scale()
     bar.y += (height/4-height/10)/5;
     SDL_RenderFillRect(renderer,&bar);
     rect_texte.y += (height/4-height/10)/5;
-    sprintf(texte, "npm = %.3lf", near_pressure_multiplier);
+    SDL_snprintf(texte, sizeof(texte), "npm = %.3lf\0", near_pressure_multiplier);
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
     rect_texte.w = surface_texte->w;
@@ -315,3 +231,42 @@ void draw_scale()
 
 
 
+void draw_help()
+{
+    SDL_Rect help;
+    help.h = height/2.5;
+    help.w = width/4;
+    help.x = 0;
+    help.y = 0;
+    SDL_SetRenderDrawColor(renderer, RGB_txt, RGB_txt, RGB_txt, SDL_ALPHA_OPAQUE);
+    SDL_RenderDrawRect(renderer,&help);
+
+
+    rect_texte.x = width/50;
+    rect_texte.y = height/50;
+    
+    char command[12][100] = {
+        {"[SPACE] : Stop sim\0"},
+        {"[F5] : Restart sim\0"},
+        {"[F11] : Full screen\0"},
+        {"[->] : Moove forward\0"},
+        {"[<-] : Moove backward\0"},
+        {"[I] : White/Dark mode\0"},
+        {"[R] : Reset const\0"},
+        {"[S] : Un/show part\0"},
+        {"[G] : Right shift\0"},
+        {"[U] : Up shift\0"},
+        {"[D] : Draw obstacles\0"},
+        {"[H] : Un/show help\0"},
+
+    };
+    for (int i = 0; i<12; i++) {
+        SDL_snprintf(texte, sizeof(texte), command[i]);
+        surface_texte = TTF_RenderText_Blended(font, texte, white);
+        texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+        rect_texte.w = surface_texte->w;
+        rect_texte.h = surface_texte->h;
+        SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+        rect_texte.y += surface_texte->h*1.2;
+    }
+}
