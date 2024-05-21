@@ -475,7 +475,7 @@ Vect2D Mouse_force(Vect2D inputPos, int k ,int n, double strength)
     Vect2D offset;
     offset.x = inputPos.x - particle_grid.data[k][n].position.x;
     offset.y = inputPos.y - particle_grid.data[k][n].position.y;
-    double q = sqrt(pow(offset.x,2)+pow(offset.y,2));
+    double q = sqrt(pow(offset.x, 2)+pow(offset.y, 2));
 
     if (q <= smoothing_radius*4) {
         Vect2D dir_to_input_force = Vect2D_zero();
