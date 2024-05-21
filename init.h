@@ -19,13 +19,13 @@
 #include <sched.h>
 
 
-#define matwidth 80
-#define matlength 80
+#define matwidth 40
+#define matlength 40
 #define width 1200
 #define height 1015
 #define widthstats 525
 #define widthscale 295
-#define pradius 3
+#define pradius 1
 int x_right = width+widthstats;
 int x_left = 0;
 int y_up = 0;
@@ -203,8 +203,7 @@ void initmat()
     particle_grid.particle_on_top = (int*)calloc(0,sizeof(int)*numofseparation);
     srand(time(0));             
     for (int i = 0; i<particle_grid.MATlength; i++) {
-        for (int j = 0; j<particle_grid.MATwidth; j++) {
-             
+        for (int j = 0; j<particle_grid.MATwidth; j++) {    
             particle_grid.data[i][j].position.x = ((x_right-x_left)-matlength*2*1.5*pradius)/2+i*pradius*2*1.5;
             particle_grid.data[i][j].position.y = ((y_down-y_up)-matwidth*2*1.5*pradius)/2+j*pradius*2*1.5;
 
