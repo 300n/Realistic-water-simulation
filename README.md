@@ -1,6 +1,9 @@
-# 🌊 Fluid Simulation using Smoothed Particle Hydrodynamics (SPH) 🌊
+# 🌊 Fluid Simulation 🌊
 
 A real-time 2D fluid dynamics simulator implemented in C using SDL2, based on the Smoothed Particle Hydrodynamics method. This project features interactive controls, real-time parameter adjustment, and visual feedback for understanding fluid behavior.
+
+![Simulation View](assets/Simulation_view.png)
+*Particles colored by velocity with spatial grid overlay*
 
 ![Fluid Simulation Demo](https://img.shields.io/badge/C-00599C?style=for-the-badge&logo=c&logoColor=white)
 ![SDL2](https://img.shields.io/badge/SDL2-Graphics-green?style=for-the-badge)
@@ -58,17 +61,6 @@ A real-time 2D fluid dynamics simulator implemented in C using SDL2, based on th
 - **Left Click**: Display density at clicked location
 - **Right Click**: Visualize density field
 
-## 🔧 Adjustable Parameters
-
-The right panel features interactive sliders for:
-
-- **FPS**: Simulation frame rate (1-120)
-- **h (Smoothing Radius)**: Kernel influence radius (1-100)
-- **m (Mass)**: Particle mass (1-11)
-- **t_dens (Target Density)**: Desired fluid density (0-0.01)
-- **p (Pressure Multiplier)**: Pressure force strength (0-100000)
-- **visco (Viscosity)**: Fluid viscosity coefficient (0-10)
-
 ## 📊 Statistics Display
 
 The interface shows real-time statistics:
@@ -124,31 +116,3 @@ Smooth surface rendering with:
 ## 📄 License
 
 This project is open source and available under the MIT License.
-
-## 🙏 Acknowledgments
-
-Based on the SPH algorithm described in:
-- Müller et al., "Particle-Based Fluid Simulation for Interactive Applications" (SCA 2003)
-- Smoothing kernel implementations from Matthias Müller's research
-
-## 📸 Screenshots
-
-### Main Simulation View
-![Simulation View](assets/main_view.png)
-*Particles colored by velocity with spatial grid overlay*
-
-### Surface Rendering Mode
-![Surface Mode](assets/surface_mode.png)
-*Smooth water surface with depth-gradient shading*
-
-### Density Visualization
-![Density View](assets/density_view.png)
-*Heat map showing pressure distribution*
-
-### Interactive Parameter Control
-![Controls](assets/controls.png)
-*Real-time parameter adjustment sliders*
-
-## 🎥 Video Demonstration
-
-[![Demo Video](assets/video_thumbnail.png)](assets/demo_video.mp4)
