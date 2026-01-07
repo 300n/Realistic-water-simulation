@@ -2,7 +2,7 @@
 
 A real-time 2D fluid dynamics simulator implemented in C using SDL2, based on the Smoothed Particle Hydrodynamics method. This project features interactive controls, real-time parameter adjustment, and visual feedback for understanding fluid behavior.
 
-![Simulation View](assets/Simulation_view.png)
+![Simulation View](assets/Main_view.png)
 *Particles colored by velocity with spatial grid overlay*
 
 ![Fluid Simulation Demo](https://img.shields.io/badge/C-00599C?style=for-the-badge&logo=c&logoColor=white)
