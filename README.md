@@ -89,7 +89,7 @@ git clone https://github.com/yourusername/fluid-simulation-sph.git
 cd fluid-simulation-sph
 
 # Compile
-gcc TIPE.c -lSDL2 -lSDL2_ttf -lm -Wno-format -Wall -Werror -Wpedantic -o fluid_sim
+gcc Water_sim.c -lSDL2 -lSDL2_ttf -lm -Wno-format -Wall -Werror -Wpedantic -o fluid_sim
 
 # Run
 ./fluid_sim
