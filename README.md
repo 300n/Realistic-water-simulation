@@ -83,7 +83,6 @@ brew install sdl2 sdl2_ttf
 
 ### Building
 
-```bash
 # Clone the repository
 git clone https://github.com/yourusername/fluid-simulation-sph.git
 cd fluid-simulation-sph
