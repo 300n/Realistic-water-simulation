@@ -18,7 +18,7 @@
 #define height 800
 #define widthstats 525
 #define widthscale 295
-#define pradius 3
+#define pradius 2
 int x_right = width+widthstats;
 int x_left = 0;
 int y_up = 0;
@@ -45,43 +45,59 @@ char comm[256];
 int temperature = 20;
 int numof_particle_added = 0;
 
-double const FPSconst = 20; // nombre d'image par seconde 
+typedef struct {
+    const char* label;      
+    const char* format;     
+    double* value;          
+    double min_val;         
+    double max_val;         
+    double default_val;     
+    int color_r, color_g, color_b;  
+} Slider;
+
+#define NUM_SLIDERS 6
+#define SLIDER_START_Y (height/4 + height/12)
+#define SLIDER_SPACING (height/22)
+#define SLIDER_BAR_X (width + widthstats/3)
+#define SLIDER_BAR_W (widthstats/3)
+#define SLIDER_BAR_H 5
+#define SLIDER_KNOB_R 7
+
+// Valeurs des paramètres
+double const FPSconst = 60;
 double FPS = FPSconst;
-int xFPS = width+widthstats/30*2+widthstats/4;
-int yFPS = height/4+height/20;
 
-double const h = 35; // rayon kernel
+double const h = 25;
 double smoothing_radius = h;
-int xh = width+widthstats/30*2+widthstats/4;
-int yh = height/4+height/20+(height/4-height/10)/5;
 
-double const mconst = 1; // masse de chaque particule
+double const mconst = 1;
 double m = mconst;
-int xm = width+widthstats/30*2;
-int ym = height/4+height/20+((height/4-height/10)/5)*2;
 
-double const t_dens = 0.005  /*(double) (matwidth * matlength) / (width * height)*/ ; 
-double target_density = t_dens; // target density
-int x_tdens = width+widthstats/30*2;
-int y_tdens = height/4+height/20+((height/4-height/10)/5)*3;
+double const t_dens = 0.012;
+double target_density = t_dens;
 
+double const k = 300000;
+double pressure_multiplier = k;
 
-double const k = 300000; 
-double pressure_multiplier = k; 
-int xk = width+widthstats/30*2+widthstats/4;
-int yk = height/4+height/20+((height/4-height/10)/5)*4;
-
-double near_pressure_multiplier = 1;
+double near_pressure_multiplier = 5;
 
 
-int const numofseparation = 30;
+int const numofseparation = 50;
 int particle_visible = 1;
 int z = 0;
 
-double const viscosity_strength_const = 0.5;
+double *gradient_control_x;
+double *gradient_control_y;
+double *gradient_control_y_smoothed;  
+int gradient_initialized = 0;         
+
+double const viscosity_strength_const = 15.0;
 double viscosity_strength = viscosity_strength_const;
-int x_vs = width+widthstats/30*2+widthstats/4;
-int y_vs = height/4+height/20+((height/4-height/10)/5)*5;
+
+double const cohesion_strength_const = 2.0;
+double cohesion_strength = cohesion_strength_const;
+
+Slider sliders[NUM_SLIDERS];
 
 const double pi = 3.1415926535;
 const double g = 9.80665;
@@ -142,7 +158,9 @@ typedef struct
 
 
 Couple* Spatial_Lookup;
+Couple* Spatial_Lookup_temp;  
 int* start_indices;
+int* counting_sort_count;     
 
 
 void initSDL(void)
@@ -186,22 +204,26 @@ void initmat(void)
     }
 
     Spatial_Lookup = (Couple*)malloc(sizeof(Couple)*(particle_grid.MATlength*particle_grid.MATwidth));
+    Spatial_Lookup_temp = (Couple*)malloc(sizeof(Couple)*(particle_grid.MATlength*particle_grid.MATwidth));
     start_indices = (int*)malloc(sizeof(int)*particle_grid.MATlength*particle_grid.MATwidth);
+    counting_sort_count = (int*)malloc(sizeof(int)*particle_grid.MATlength*particle_grid.MATwidth);
 
-    particle_grid.particle_on_top = (int*)calloc(numofseparation, sizeof(int));  
-    
+    particle_grid.particle_on_top = (int*)calloc(numofseparation, sizeof(int));
+
+    gradient_control_x = (double*)malloc(numofseparation * sizeof(double));
+    gradient_control_y = (double*)malloc(numofseparation * sizeof(double));
+    gradient_control_y_smoothed = (double*)malloc(numofseparation * sizeof(double));
+    gradient_initialized = 0; 
+
     srand(time(0));             
     
-    // Calculer l'espacement et la taille de la grille
-    double spacing = 8;  // Espacement entre particules
+    double spacing = 7.0;
     double grid_width = (matlength - 1) * spacing;
     double grid_height = (matwidth - 1) * spacing;
     
-    // Calculer le décalage pour centrer la grille
     double offset_x = x_left + (x_right - x_left - grid_width) / 2.0;
     double offset_y = y_up + (y_down - y_up - grid_height) / 2.0;
     
-    // S'assurer que le décalage est positif
     if (offset_x < x_left + pradius) {
         offset_x = x_left + pradius;
         spacing = (x_right - x_left - 2 * pradius) / (double)(matlength - 1);
@@ -213,11 +235,9 @@ void initmat(void)
     
     for (int i = 0; i < particle_grid.MATlength; i++) {
         for (int j = 0; j < particle_grid.MATwidth; j++) {
-            // Position avec espacement adaptatif
             particle_grid.data[i][j].position.x = offset_x + i * spacing;
             particle_grid.data[i][j].position.y = offset_y + j * spacing;
             
-            // Clamp pour garantir qu'on reste dans les limites
             if (particle_grid.data[i][j].position.x < x_left + pradius) {
                 particle_grid.data[i][j].position.x = x_left + pradius;
             }
@@ -317,22 +337,18 @@ float cpu_usage;
 float cpu_tot;
 
 
+extern double smoothing_radius_sq;
+
 void reset_const(void)
 {
     pressure_multiplier = k;
     smoothing_radius = h;
+    smoothing_radius_sq = h * h;
     m = mconst;
     FPS = FPSconst;
     target_density = t_dens;
     viscosity_strength = viscosity_strength_const;
-
-    xk = width+widthstats/30*2+widthstats/4;
-    xh = width+widthstats/30*2+widthstats/4;
-    xm = width+widthstats/30*2;
-    xFPS = width+widthstats/30*2+widthstats/4;
-    x_tdens = width+widthstats/30*2;
-    x_vs = width+widthstats/30*2+widthstats/4;
-
+    near_pressure_multiplier = 5;
 }
 
 

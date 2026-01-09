@@ -24,32 +24,7 @@ void draw_rect(int x, int y, int xwidth, int yheight)
 }
 
 
-void draw_Cartesian_axes(void)
-{
-    SDL_SetRenderDrawColor(renderer,RGB_txt,RGB_txt,RGB_txt,SDL_ALPHA_OPAQUE);
-    SDL_RenderDrawLine(renderer,height/40+(((height-(height/20))/20)),width-(width*3/40)-(width/150),height/40+(((height-(height/20))/20)*2),width-(width*3/40)-(width/150));
-    SDL_RenderDrawLine(renderer,(height/40*3)-(height/275),(width/40)+(((width-(width/20))/20)*18),(height/40*3)-(height/275),(width/40)+(((width-(width/20))/20)*19));
 
-    /*tip of arrows*/
-    SDL_RenderDrawLine(renderer,height/40+(((height-(height/20))/20)*2),width-(width*3/40)-(width/150),(height/40+(((height-(height/20))/20)*2))-(height/140),width-(width*3/40)-(width/150)-(width/140));
-    SDL_RenderDrawLine(renderer,height/40+(((height-(height/20))/20)*2),width-(width*3/40)-(width/150),(height/40+(((height-(height/20))/20)*2))-(height/140),width-(width*3/40)-(width/150)+(width/140));
-    SDL_RenderDrawLine(renderer,(height/40+(((height-(height/20))/20)*2))-(height/140),width-(width*3/40)-(width/150)-(width/140),(height/40+(((height-(height/20))/20)*2))-(height/140),width-(width*3/40)-(width/150)+(width/140));
-    SDL_RenderDrawLine(renderer,(height/40*3)-(height/275),(width/40)+(((width-(width/20))/20)*18),(height/40*3)-(height/275)-(height/140),(width/40)+(((width-(width/20))/20)*18)+(width/140));
-    SDL_RenderDrawLine(renderer,(height/40*3)-(height/275),(width/40)+(((width-(width/20))/20)*18),(height/40*3)-(height/275)+(height/140),(width/40)+(((width-(width/20))/20)*18)+(width/140));
-    SDL_RenderDrawLine(renderer,(height/40*3)-(height/275)-(height/140),(width/40)+(((width-(width/20))/20)*18)+(width/140),(height/40*3)-(height/275)+(height/140),(width/40)+(((width-(width/20))/20)*18)+(width/140));
-    /*txt*/
-    sprintf(texte, "1m");
-    surface_texte = TTF_RenderText_Blended(smallfont, texte, white);
-    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.x = (height/40+(((height-(height/20))/20))+height/40+(((height-(height/20))/20)*2))/2-height/80;
-    rect_texte.y = width-(width*3/40)+width/300;
-    rect_texte.w = surface_texte->w;
-    rect_texte.h = surface_texte->h;    
-    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    rect_texte.x = (height/40*3)-1-height/40;
-    rect_texte.y = ((width/40)+(((width-(width/20))/20)*(18+19)))/2+width/140;
-    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-}
 
 void draw_grid(void)
 {
@@ -80,28 +55,47 @@ void draw_grid(void)
 
     SDL_SetRenderDrawColor(renderer,RGB_lines,RGB_lines,RGB_lines,SDL_ALPHA_TRANSPARENT);
     draw_rect(x_left,y_up,x_right-1-x_left,y_down-1-y_up);
-    draw_Cartesian_axes();
 
 }
 
-void drawCircle(int X, int Y, int radius) 
+void drawCircle(int X, int Y, int radius)
 {
+    int radius_sq = radius * radius;
     for (int x = X - radius; x <= X + radius; x++) {
+        int dx = x - X;
+        int dx_sq = dx * dx;
         for (int y = Y - radius; y <= Y + radius; y++) {
-            if (pow(x - X, 2) + pow(y - Y, 2) <= pow(radius, 2)) {
+            int dy = y - Y;
+            if (dx_sq + dy * dy <= radius_sq) {
                 SDL_RenderDrawPoint(renderer, x, y);
             }
         }
     }
-
 }
 
-void dessinerCercle(int x, int y, int rayon) {
-    for (int i = 0; i < 360; i++) {
-        double angle = i * pi / 180;
-        int xPoint = x + (int)(rayon * cos(angle));
-        int yPoint = y + (int)(rayon * sin(angle));
-        SDL_RenderDrawPoint(renderer, xPoint, yPoint);
+// Algorithme de Bresenham 
+void dessinerCercle(int xc, int yc, int r) {
+    int x = 0;
+    int y = r;
+    int d = 3 - 2 * r;
+
+    while (y >= x) {
+        SDL_RenderDrawPoint(renderer, xc + x, yc + y);
+        SDL_RenderDrawPoint(renderer, xc - x, yc + y);
+        SDL_RenderDrawPoint(renderer, xc + x, yc - y);
+        SDL_RenderDrawPoint(renderer, xc - x, yc - y);
+        SDL_RenderDrawPoint(renderer, xc + y, yc + x);
+        SDL_RenderDrawPoint(renderer, xc - y, yc + x);
+        SDL_RenderDrawPoint(renderer, xc + y, yc - x);
+        SDL_RenderDrawPoint(renderer, xc - y, yc - x);
+
+        x++;
+        if (d > 0) {
+            y--;
+            d = d + 4 * (x - y) + 10;
+        } else {
+            d = d + 4 * x + 6;
+        }
     }
 }
 
@@ -222,98 +216,159 @@ void Colorflipped(void)
 
 
 
+void init_sliders(void)
+{
+    sliders[0] = (Slider){"dt", "%.0f", &FPS, 10, 120, FPSconst, 100, 200, 255};
+    sliders[1] = (Slider){"Radius", "%.0f", &smoothing_radius, 5, 100, h, 255, 150, 100};
+    sliders[2] = (Slider){"Mass", "%.1f", &m, 0.1, 10, mconst, 150, 255, 150};
+    sliders[3] = (Slider){"Density", "%.4f", &target_density, 0.001, 0.05, t_dens, 255, 200, 100};
+    sliders[4] = (Slider){"Pressure", "%.0f", &pressure_multiplier, 10000, 500000, k, 255, 100, 150};
+    sliders[5] = (Slider){"Viscosity", "%.2f", &viscosity_strength, 0.1, 30, viscosity_strength_const, 100, 180, 255};
+}
+
+// Dessine un slider individuel
+void draw_single_slider(Slider* s, int y_pos)
+{
+    int bar_x = SLIDER_BAR_X;
+    int bar_w = SLIDER_BAR_W;
+    int bar_h = SLIDER_BAR_H;
+    int knob_r = SLIDER_KNOB_R;
+
+    // Calculer la position du curseur (0.0 à 1.0)
+    double ratio = (*(s->value) - s->min_val) / (s->max_val - s->min_val);
+    if (ratio < 0) ratio = 0;
+    if (ratio > 1) ratio = 1;
+    int knob_x = bar_x + (int)(ratio * bar_w);
+
+    // === Fond de la barre (gris foncé) ===
+    SDL_Rect bg_bar = {bar_x - 2, y_pos - bar_h/2 - 2, bar_w + 4, bar_h + 4};
+    SDL_SetRenderDrawColor(renderer, 40, 40, 45, SDL_ALPHA_OPAQUE);
+    SDL_RenderFillRect(renderer, &bg_bar);
+
+    // === Barre de fond (gris) ===
+    SDL_Rect track = {bar_x, y_pos - bar_h/2, bar_w, bar_h};
+    SDL_SetRenderDrawColor(renderer, 70, 70, 80, SDL_ALPHA_OPAQUE);
+    SDL_RenderFillRect(renderer, &track);
+
+    // === Barre de progression (colorée) ===
+    SDL_Rect progress = {bar_x, y_pos - bar_h/2, knob_x - bar_x, bar_h};
+    SDL_SetRenderDrawColor(renderer, s->color_r, s->color_g, s->color_b, SDL_ALPHA_OPAQUE);
+    SDL_RenderFillRect(renderer, &progress);
+
+    // === Curseur (knob) ===
+    // Ombre du curseur
+    SDL_SetRenderDrawColor(renderer, 20, 20, 25, SDL_ALPHA_OPAQUE);
+    drawCircle(knob_x + 1, y_pos + 1, knob_r);
+    // Curseur principal
+    SDL_SetRenderDrawColor(renderer, 220, 220, 230, SDL_ALPHA_OPAQUE);
+    drawCircle(knob_x, y_pos, knob_r);
+    // Centre coloré
+    SDL_SetRenderDrawColor(renderer, s->color_r, s->color_g, s->color_b, SDL_ALPHA_OPAQUE);
+    drawCircle(knob_x, y_pos, knob_r - 3);
+
+    // === Label (à gauche) ===
+    SDL_SetRenderDrawColor(renderer, RGB_txt, RGB_txt, RGB_txt, SDL_ALPHA_OPAQUE);
+    sprintf(texte, "%s", s->label);
+    surface_texte = TTF_RenderText_Blended(font, texte, white);
+    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+    rect_texte.x = bar_x - surface_texte->w - 15;
+    rect_texte.y = y_pos - surface_texte->h / 2;
+    rect_texte.w = surface_texte->w;
+    rect_texte.h = surface_texte->h;
+    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+    SDL_FreeSurface(surface_texte);
+    SDL_DestroyTexture(texture_texte);
+
+    // === Valeur (à droite) ===
+    sprintf(texte, s->format, *(s->value));
+    surface_texte = TTF_RenderText_Blended(font, texte, white);
+    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+    rect_texte.x = bar_x + bar_w + 15;
+    rect_texte.y = y_pos - surface_texte->h / 2;
+    rect_texte.w = surface_texte->w;
+    rect_texte.h = surface_texte->h;
+    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
+    SDL_FreeSurface(surface_texte);
+    SDL_DestroyTexture(texture_texte);
+}
+
+// Vérifie si la position est dans le panneau des sliders
+int is_in_slider_panel(int mouse_x, int mouse_y)
+{
+    int panel_x = width + widthstats/20;
+    int panel_y = SLIDER_START_Y - 30;
+    int panel_w = widthstats - widthstats/10;
+    int panel_h = NUM_SLIDERS * SLIDER_SPACING + 40;
+
+    return (mouse_x >= panel_x && mouse_x <= panel_x + panel_w &&
+            mouse_y >= panel_y && mouse_y <= panel_y + panel_h);
+}
+
+// Retourne l'index du slider survolé, ou -1 si aucun
+int get_slider_at_position(int mouse_x, int mouse_y)
+{
+    int bar_x = SLIDER_BAR_X;
+    int bar_w = SLIDER_BAR_W;
+    int hit_margin = 15;  // Marge de clic verticale
+
+    for (int i = 0; i < NUM_SLIDERS; i++) {
+        int y_pos = SLIDER_START_Y + i * SLIDER_SPACING;
+
+        if (mouse_x >= bar_x - 10 && mouse_x <= bar_x + bar_w + 10 &&
+            mouse_y >= y_pos - hit_margin && mouse_y <= y_pos + hit_margin) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+
 void draw_scale(void)
 {
-    SDL_Rect bar;
+    int panel_x = x_right - widthstats;
+    int panel_y = SLIDER_START_Y - 50;
+    int panel_w = widthstats - widthstats/15;
+    int panel_h = NUM_SLIDERS * SLIDER_SPACING + 40;
+
+    SDL_Rect panel = {panel_x, panel_y, panel_w, panel_h};
     
-    
 
-    SDL_SetRenderDrawColor(renderer, RGB_background, RGB_background, RGB_background, SDL_ALPHA_OPAQUE);
-    draw_rect(x_right-widthstats, height/4+height/40, widthstats-widthstats/15, height/4-height/40);
-    bar.x = x_right-widthstats+widthstats/15;
-    bar.y = height/4+height/20;
-    bar.w = widthstats/2;
-    bar.h = height/400;
-    SDL_RenderFillRect(renderer,&bar);
-    double x_dot = x_right-widthstats + widthstats / 15 + bar.w / 2;
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+    SDL_RenderDrawRect(renderer, &panel);
 
-    rect_texte.x = bar.x+bar.w+widthstats/16+widthstats/100;
-    rect_texte.y = bar.y-bar.h*6;
-    sprintf(texte, "FPS = %.0lf", FPS);
+    sprintf(texte, "Parametres");
     surface_texte = TTF_RenderText_Blended(font, texte, white);
     texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
+    rect_texte.x = panel_x + panel_w/2 - surface_texte->w/2;
+    rect_texte.y = panel_y + 5;
     rect_texte.w = surface_texte->w;
     rect_texte.h = surface_texte->h;
     SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(x_dot,yFPS,7);
-    draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
+    SDL_FreeSurface(surface_texte);
+    SDL_DestroyTexture(texture_texte);
 
-
-    bar.y += (height/4-height/10)/5;
-    SDL_RenderFillRect(renderer,&bar);
-
-    rect_texte.y += (height/4-height/10)/5;
-    sprintf(texte, "h = %.0lf", smoothing_radius);
-    surface_texte = TTF_RenderText_Blended(font, texte, white);
-    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.w = surface_texte->w;
-    rect_texte.h = surface_texte->h;
-    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(x_dot,yh,7);
-    draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
-
-    bar.y += (height/4-height/10)/5;
-    SDL_RenderFillRect(renderer,&bar);
-    rect_texte.y += (height/4-height/10)/5;
-    sprintf(texte, "m = %.0lf", m);
-    surface_texte = TTF_RenderText_Blended(font, texte, white);
-    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.w = surface_texte->w;
-    rect_texte.h = surface_texte->h;
-    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(x_dot,ym,7);
-    draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
-
-
-    bar.y += (height/4-height/10)/5;
-    SDL_RenderFillRect(renderer,&bar);
-    rect_texte.y += (height/4-height/10)/5;
-    sprintf(texte, "t_dens = %.3lf", target_density);
-    surface_texte = TTF_RenderText_Blended(font, texte, white);
-    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.w = surface_texte->w;
-    rect_texte.h = surface_texte->h;
-    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(x_dot,y_tdens,7);
-    draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
-
-
-    bar.y += (height/4-height/10)/5;
-    SDL_RenderFillRect(renderer,&bar);
-    rect_texte.y += (height/4-height/10)/5;
-    sprintf(texte, "p = %.0lf", pressure_multiplier);
-    surface_texte = TTF_RenderText_Blended(font, texte, white);
-    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.w = surface_texte->w;
-    rect_texte.h = surface_texte->h;
-    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(x_dot,yk,7);
-    draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
-
-    bar.y += (height/4-height/10)/5;
-    SDL_RenderFillRect(renderer,&bar);
-    rect_texte.y += (height/4-height/10)/5;
-    sprintf(texte, "visco = %.3lf", viscosity_strength);
-    surface_texte = TTF_RenderText_Blended(font, texte, white);
-    texture_texte = SDL_CreateTextureFromSurface(renderer, surface_texte);
-    rect_texte.w = surface_texte->w;
-    rect_texte.h = surface_texte->h;
-    SDL_RenderCopy(renderer, texture_texte, NULL, &rect_texte);
-    drawCircle(x_dot,y_vs,7);
-    draw_rect(bar.x+bar.w+widthstats/16,bar.y-bar.h*6,rect_texte.w+10,bar.h*12);
-
-
+    for (int i = 0; i < NUM_SLIDERS; i++) {
+        int y_pos = SLIDER_START_Y + i * SLIDER_SPACING;
+        draw_single_slider(&sliders[i], y_pos);
+    }
 }
+
+void update_slider_from_mouse(int slider_idx, int mouse_x)
+{
+    if (slider_idx < 0 || slider_idx >= NUM_SLIDERS) return;
+    draw_scale();
+    Slider* s = &sliders[slider_idx];
+    int bar_x = SLIDER_BAR_X;
+    int bar_w = SLIDER_BAR_W;
+
+    double ratio = (double)(mouse_x - bar_x) / bar_w;
+    if (ratio < 0) ratio = 0;
+    if (ratio > 1) ratio = 1;
+
+    *(s->value) = s->min_val + ratio * (s->max_val - s->min_val);
+}
+
+
 
 void draw_help(void)
 {
