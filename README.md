@@ -52,14 +52,10 @@ A real-time 2D fluid dynamics simulator implemented in C using SDL2, based on th
 
 ### Mouse Controls
 
-**Interaction Mode (C key to toggle):**
+**Interaction Mode :**
 - **Left Click + Drag**: Apply repulsive force
 - **Right Click + Drag**: Apply attractive force
 - **Click on sliders**: Adjust simulation parameters in real-time
-
-**Examination Mode:**
-- **Left Click**: Display density at clicked location
-- **Right Click**: Visualize density field
 
 ## 📊 Statistics Display
 
@@ -94,20 +90,6 @@ gcc Water_sim.c -lSDL2 -lSDL2_ttf -lm -Wno-format -Wall -Werror -Wpedantic -o fl
 ./fluid_sim
 ```
 
-
-
-## 🎨 Visualization Modes
-
-### Particle Mode (default)
-Individual particles colored by velocity magnitude:
-- **Blue**: Slow/stationary
-- **Purple/Red**: Fast-moving
-
-### Water Surface Mode (press S)
-Smooth surface rendering with:
-- Catmull-Rom spline interpolation
-- Depth-based gradient shading
-- Surface normal detection
 
 
 
